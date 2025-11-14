@@ -514,7 +514,6 @@ fig.update_layout(
 
 # Render main graph & controls
 with graph_col:
-    st.subheader("Dose-Response Curves")
     plot_placeholder = st.empty()
 
     # Main graph
