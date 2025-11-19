@@ -19,6 +19,63 @@ st.set_page_config(
     layout="wide",
 )
 
+# ===================== Defaults (2PL-only, namespaced) ======================
+
+DEFAULTS = {
+    # Ranges (min/max) for 2PL: only slope (B) and EC50 (C)
+    "b_min_2pl": -2.0,
+    "b_max_2pl": -0.5,
+    "c_min_2pl": 0.1,
+    "c_max_2pl": 3.0,
+
+    # Dilution controls – aligned with 4PL defaults
+    "top_conc_2pl": 100.0,              # 10**2
+    "even_dil_factor_2pl": 10 ** 0.5,   # √10 ≈ 3.162
+    "dilution_str_2pl": "",             # optional custom 7 factors
+
+    # App state
+    "curves_2pl": [],
+    "next_label_idx_2pl": 1,
+
+    # RP input text (optional)
+    "rps_str_2pl": "",
+}
+
+FLOAT_KEYS = [
+    "b_min_2pl",
+    "b_max_2pl",
+    "c_min_2pl",
+    "c_max_2pl",
+    "top_conc_2pl",
+    "even_dil_factor_2pl",
+]
+
+# ===================== Early session-state sync =============================
+
+if "initialized_2pl" not in st.session_state:
+    st.session_state["initialized_2pl"] = True
+    for k, v in DEFAULTS.items():
+        st.session_state[k] = v
+
+# Ensure keys exist and have consistent float types
+for k, v in DEFAULTS.items():
+    st.session_state.setdefault(k, v)
+for k in FLOAT_KEYS:
+    st.session_state[k] = float(st.session_state[k])
+
+# Recommender interaction flags (already namespaced)
+st.session_state.setdefault("apply_rec_factor_2pl", False)
+st.session_state.setdefault("rec_factor_value_2pl", None)
+st.session_state.setdefault("rec_df_2pl", None)
+
+# If a recommended factor was chosen, apply it before widgets render
+if st.session_state.get("apply_rec_factor_2pl", False):
+    rec_val = st.session_state.get("rec_factor_value_2pl", None)
+    if rec_val is not None:
+        st.session_state["even_dil_factor_2pl"] = float(rec_val)
+        st.session_state["dilution_str_2pl"] = ""
+    st.session_state["apply_rec_factor_2pl"] = False
+
 # ===================== Sidebar Logo (works on all pages) ====================
 
 LOGO_PATH = "graphics/Logo.jpg"
@@ -75,55 +132,15 @@ def compute_curve_2pl(b, c, x_log10):
     return two_param_logistic_logx(x_log10, b, c, A=A_FIXED, D=D_FIXED)
 
 
-# ===================== Title & high-level description =======================
+# ===================== Title & short description ============================
 
 st.title("2PL Quantification Tool")
 
 st.caption(
-    "Parallel-curve, **two-parameter logistic** model with fixed lower "
+    "Parallel-curve **two-parameter logistic** model with fixed lower "
     "asymptote **D = 0** and upper asymptote **A = 1**. "
-    "This page focuses on slope (**B**) and EC₅₀ (**C**) and assumes "
-    "similar (parallel) Test and Standard curves, as in USP 〈1034〉."
+    "Only slope (**B**) and EC₅₀ (**C**) vary."
 )
-
-# ===================== Session State / Defaults =============================
-
-DEFAULTS = {
-    # Ranges (min/max) for 2PL: only slope (B) and EC50 (C)
-    # These are intentionally modest, reflecting a "typical" sigmoidal response.
-    "b_min": -1.8,
-    "b_max": -0.7,
-    "c_min": 0.1,
-    "c_max": 10.0,
-
-    # Dilution controls
-    "top_conc": 1.0,             # starting concentration for the dilution series
-    "even_dil_factor": 10 ** 0.5,  # √10 ≈ 3.162, common for log spacing
-    "dilution_str": "",          # optional custom 7 factors
-
-    # App state
-    "curves": [],
-    "next_label_idx": 1,
-
-    # RP input text (optional)
-    "rps_str": "",
-}
-for k, v in DEFAULTS.items():
-    st.session_state.setdefault(k, v)
-
-# Recommender interaction flags
-st.session_state.setdefault("apply_rec_factor_2pl", False)
-st.session_state.setdefault("rec_factor_value_2pl", None)
-st.session_state.setdefault("rec_df_2pl", None)
-
-# ---- Apply any pending recommended factor BEFORE widgets are created ----
-if st.session_state.get("apply_rec_factor_2pl", False):
-    rec_val = st.session_state.get("rec_factor_value_2pl", None)
-    if rec_val is not None:
-        st.session_state["even_dil_factor"] = float(rec_val)
-        # clear custom factors so the even factor is actually used
-        st.session_state["dilution_str"] = ""
-    st.session_state["apply_rec_factor_2pl"] = False
 
 # ===================== Tunable region thresholds (anchor / linear) ==========
 # For 2PL with A=1, D=0, the normalized response t is just y itself.
@@ -163,10 +180,6 @@ def _list_to_str(xs):
 
 
 def classify_region(y_val: float) -> str:
-    """
-    Classify a response value into lower anchor, linear band, upper anchor,
-    or transition, using the same thresholds as the recommender.
-    """
     if y_val <= LOWER_ANCHOR_MAX:
         return "Lower anchor"
     if y_val >= UPPER_ANCHOR_MIN:
@@ -201,12 +214,12 @@ def _lock_curve(label, b, c, rp=None, grid=None):
     """
     Persist an 8-point curve using the current dilution grid.
 
-    For RP ≠ 1, we store the *effective* EC50 C_eff = C / RP
+    For RP ≠ 1, store the effective EC50 C_eff = C / RP
     (parallel-curve model: same shape, horizontal shift only).
     """
     c_eff = c / rp if (rp is not None and rp != 0) else c
 
-    top_conc = float(grid.get("top_conc")) if grid else 1.0
+    top_conc = float(grid.get("top_conc")) if grid else 100.0
     even_factor = float(grid.get("even_factor")) if grid else 10 ** 0.5
     custom_factors = list(grid.get("custom_factors", [])) if grid else []
 
@@ -226,18 +239,16 @@ def _lock_curve(label, b, c, rp=None, grid=None):
         "b": float(b),
         "c": float(c_eff),
         "rp": 1.0 if rp in (None, 0) else float(rp),
-
         "grid": {
             "top_conc": float(top_conc),
             "even_factor": float(even_factor),
             "custom_factors": list(custom_factors),
         },
-
         "x_log10_sparse": [float(v) for v in x_sparse_locked],
         "conc_sparse": [float(v) for v in conc_sparse],
         "y_sparse": [float(v) for v in y_sparse_locked],
     }
-    st.session_state["curves"].append(entry)
+    st.session_state["curves_2pl"].append(entry)
 
 
 # ===================== Recommender internals (2PL: B & C vary) =============
@@ -340,12 +351,14 @@ with left_panel:
         "Top concentration",
         min_value=1e-12,
         max_value=1e12,
+        value=float(st.session_state["top_conc_2pl"]),
         step=1.0,
         format="%.6g",
-        key="top_conc",
+        key="top_conc_2pl",
         help=(
-            "Highest concentration in the dilution series (on the original scale). "
-            "All other wells are generated by repeated division by the dilution factor(s)."
+            "Highest concentration in the dilution series (original scale). "
+            "All other wells are generated by repeated division by the "
+            "dilution factor(s)."
         ),
     )
 
@@ -353,19 +366,21 @@ with left_panel:
         "Even dilution factor (applied 7×)",
         min_value=1.0001,
         max_value=1e9,
+        value=float(st.session_state["even_dil_factor_2pl"]),
         step=0.01,
         format="%.6g",
-        key="even_dil_factor",
+        key="even_dil_factor_2pl",
         help=(
             "Factor between adjacent wells (e.g., 2 for 2-fold, 3 for 3-fold). "
-            "√10 ≈ 3.162 is a common choice for dose–response assays."
+            "√10 ≈ 3.162 is common for dose–response assays."
         ),
     )
 
     st.text_input(
         "Custom 7 dilution factors "
         "(override even factor if exactly 7 numbers)",
-        key="dilution_str",
+        key="dilution_str_2pl",
+        value=st.session_state["dilution_str_2pl"],
         placeholder="e.g., 3.162 3.162 3.162 3.162 3.162 3.162 3.162",
         help=(
             "Provide 7 step-wise multipliers (high → low). "
@@ -373,7 +388,7 @@ with left_panel:
         ),
     )
 
-    custom_factors = _parse_list(st.session_state["dilution_str"])
+    custom_factors = _parse_list(st.session_state["dilution_str_2pl"])
     if len(custom_factors) == 0:
         st.caption("Using even dilution factor.")
     elif len(custom_factors) == 7:
@@ -395,39 +410,53 @@ with graph_col:
 
 with left_panel:
     st.markdown("### Parameter ranges (2PL)")
-
-    st.markdown(
-        "_This page assumes fixed lower asymptote **D = 0** and upper "
-        "asymptote **A = 1** (normalized response). Only the slope (**B**) "
-        "and EC₅₀ (**C**) vary across curves. Parallel curves correspond to "
-        "similar Test and Standard preparations in the sense of USP 〈1034〉._"
+    st.caption(
+        "Fixed lower asymptote **D = 0** and upper asymptote **A = 1**; "
+        "only slope (**B**) and EC₅₀ (**C**) vary."
     )
 
     r1c1, r1c2 = st.columns(2)
     with r1c1:
-        st.number_input("b_min (slope, B)", -10.0, 10.0, step=0.01, key="b_min")
+        st.number_input(
+            "b_min (slope, B)",
+            min_value=-10.0,
+            max_value=10.0,
+            value=float(st.session_state["b_min_2pl"]),
+            step=0.01,
+            key="b_min_2pl",
+        )
         st.number_input(
             "c_min (EC₅₀, C)",
-            1e-6,
-            1e6,
+            min_value=1e-6,
+            max_value=1e6,
+            value=float(st.session_state["c_min_2pl"]),
             step=0.01,
             format="%.6g",
-            key="c_min",
+            key="c_min_2pl",
         )
     with r1c2:
-        st.number_input("b_max (slope, B)", -10.0, 10.0, step=0.01, key="b_max")
+        st.number_input(
+            "b_max (slope, B)",
+            min_value=-10.0,
+            max_value=10.0,
+            value=float(st.session_state["b_max_2pl"]),
+            step=0.01,
+            key="b_max_2pl",
+        )
         st.number_input(
             "c_max (EC₅₀, C)",
-            1e-6,
-            1e6,
+            min_value=1e-6,
+            max_value=1e6,
+            value=float(st.session_state["c_max_2pl"]),
             step=0.01,
             format="%.6g",
-            key="c_max",
+            key="c_max_2pl",
         )
 
     st.text_input(
         "Relative potencies (RP; comma/space separated)",
-        key="rps_str",
+        key="rps_str_2pl",
+        value=st.session_state["rps_str_2pl"],
         placeholder="e.g., 0.4, 0.5  1, 1.5, 2",
         help=(
             "Relative potency shifts the curve horizontally via C_eff = C / RP. "
@@ -435,7 +464,7 @@ with left_panel:
         ),
     )
 
-    user_rps = _parse_rps(st.session_state["rps_str"])
+    user_rps = _parse_rps(st.session_state["rps_str_2pl"])
     if not user_rps:
         rps = [0.4, 1.0, 1.6]
         st.caption(
@@ -448,14 +477,16 @@ with left_panel:
 
 # --------------------- Base parameters for main graph ----------------------
 
-b_min, b_max = float(st.session_state["b_min"]), float(st.session_state["b_max"])
-c_min, c_max = float(st.session_state["c_min"]), float(st.session_state["c_max"])
+b_min = float(st.session_state["b_min_2pl"])
+b_max = float(st.session_state["b_max_2pl"])
+c_min = float(st.session_state["c_min_2pl"])
+c_max = float(st.session_state["c_max_2pl"])
 
 b = (b_min + b_max) / 2.0
 c = (c_min + c_max) / 2.0
 
-top_conc = float(st.session_state["top_conc"])
-even_factor = float(st.session_state["even_dil_factor"])
+top_conc = float(st.session_state["top_conc_2pl"])
+even_factor = float(st.session_state["even_dil_factor_2pl"])
 
 # Live grids used for plotting and preview
 x_sparse_live = dp.generate_log_conc(
@@ -480,39 +511,15 @@ rp_color_map = {}
 color_cursor = 1
 if 1.0 in rp_sorted:
     rp_color_map[1.0] = palette[0]
-for rp in rp_sorted:
-    if rp == 1.0:
+for rp_val in rp_sorted:
+    if rp_val == 1.0:
         continue
-    rp_color_map[rp] = palette[color_cursor % len(palette)]
+    rp_color_map[rp_val] = palette[color_cursor % len(palette)]
     color_cursor += 1
 
 # ===================== Main figure =========================================
 
 fig = go.Figure()
-
-# --- shaded regions: lower anchor, linear band, upper anchor --------------
-
-fig.add_hrect(
-    y0=0.0,
-    y1=LOWER_ANCHOR_MAX,
-    fillcolor="rgba(150,150,150,0.10)",
-    line_width=0,
-    layer="below",
-)
-fig.add_hrect(
-    y0=LINEAR_LOW,
-    y1=LINEAR_HIGH,
-    fillcolor="rgba(50,150,250,0.10)",
-    line_width=0,
-    layer="below",
-)
-fig.add_hrect(
-    y0=UPPER_ANCHOR_MIN,
-    y1=1.05,
-    fillcolor="rgba(150,150,150,0.10)",
-    line_width=0,
-    layer="below",
-)
 
 # --- Reference curve (RP = 1.0) -------------------------------------------
 
@@ -576,7 +583,7 @@ for rp_val in rp_sorted:
 # --- Locked curves ---------------------------------------------------------
 
 locked_start_index = 6
-for idx, cv in enumerate(st.session_state["curves"]):
+for idx, cv in enumerate(st.session_state["curves_2pl"]):
     grid = cv.get("grid", {}) or {}
     tc = grid.get("top_conc", top_conc)
     ef = grid.get("even_factor", even_factor)
@@ -619,7 +626,6 @@ fig.update_layout(
     legend_title=None,
     margin=dict(l=10, r=10, t=50, b=10),
 )
-
 fig.update_yaxes(range=[-0.05, 1.05])
 
 # Render main graph & controls
@@ -630,22 +636,12 @@ with graph_col:
         use_container_width=True,
     )
 
-    st.markdown(
-        "_Shaded bands show the **lower anchor**, **linear region**, and "
-        "**upper anchor** used by the dilution-factor recommender. "
-        "Relative potency (RP) shifts curves horizontally by changing EC₅₀ "
-        "while keeping shape fixed (parallelism assumption)._"
-    )
-
     # Curve labeling & buttons
-    default_label = f"Curve {st.session_state['next_label_idx']}"
+    default_label = f"Curve {st.session_state['next_label_idx_2pl']}"
     label = st.text_input(
         "Label for base curve (reference 2PL)",
         value=default_label,
-        help=(
-            "Base curve name; RP variants are saved as parallel curves with "
-            "C_eff = C / RP."
-        ),
+        help="Base curve name; RP variants are saved as parallel curves.",
         key="label_input_2pl",
     )
 
@@ -668,14 +664,14 @@ with graph_col:
                 lbl = label if rp_val == 1.0 else f"{label} (RP={rp_val:g})"
                 _lock_curve(label=lbl, b=b, c=c, rp=rp_val, grid=grid)
 
-            st.session_state["next_label_idx"] += 1
+            st.session_state["next_label_idx_2pl"] += 1
             st.success(f"Saved '{label}' with {len(base_rps)} curve(s).")
             _rerun()
 
     with col_btn2:
         if st.button("Clear all saved curves", key="btn_clear_curves_2pl"):
-            st.session_state["curves"] = []
-            st.session_state["next_label_idx"] = 1
+            st.session_state["curves_2pl"] = []
+            st.session_state["next_label_idx_2pl"] = 1
             st.info("Cleared all saved curves.")
             _rerun()
 
@@ -727,10 +723,10 @@ ends. The score reflects how well these criteria are met.
         type="primary",
         key="btn_recommend_factors_2pl",
     ):
-        b_min_local = float(st.session_state["b_min"])
-        b_max_local = float(st.session_state["b_max"])
-        c_min_local = float(st.session_state["c_min"])
-        c_max_local = float(st.session_state["c_max"])
+        b_min_local = float(st.session_state["b_min_2pl"])
+        b_max_local = float(st.session_state["b_max_2pl"])
+        c_min_local = float(st.session_state["c_min_2pl"])
+        c_max_local = float(st.session_state["c_max_2pl"])
 
         factors = np.unique(
             np.round(
@@ -841,8 +837,10 @@ x_dense_edge = dp.generate_log_conc(
     dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
 )
 
-b_min, b_max = float(st.session_state["b_min"]), float(st.session_state["b_max"])
-c_min, c_max = float(st.session_state["c_min"]), float(st.session_state["c_max"])
+b_min = float(st.session_state["b_min_2pl"])
+b_max = float(st.session_state["b_max_2pl"])
+c_min = float(st.session_state["c_min_2pl"])
+c_max = float(st.session_state["c_max_2pl"])
 
 choices = list(itertools.product([b_min, b_max], [c_min, c_max]))
 
@@ -925,7 +923,7 @@ col_saved, col_preview = st.columns([1.15, 1.85], gap="large")
 with col_saved:
     st.subheader("Saved curves (2PL)")
 
-    df_saved = curves_to_dataframe(st.session_state["curves"])
+    df_saved = curves_to_dataframe(st.session_state["curves_2pl"])
     if not df_saved.empty:
         st.dataframe(df_saved, use_container_width=True, height=320)
         st.download_button(
@@ -976,10 +974,3 @@ with col_preview:
         st.caption(f"Using custom factors: {custom_factors}")
     else:
         st.caption(f"Using even dilution factor: {even_factor:.6g}")
-
-    st.markdown(
-        "_The **region** column classifies each well using the same thresholds "
-        "as the recommender (lower/linear/upper). Ideally, your final design "
-        "has ≥1–2 wells in each anchor and several in the linear band for "
-        "both Test and Standard curves (parallel-curve assumption)._"
-    )
