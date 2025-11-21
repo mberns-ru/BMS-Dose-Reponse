@@ -43,6 +43,32 @@ st.set_page_config(page_title="4PL Quantification Tool", layout="wide")
 # ======= Title =======
 st.title("4PL Quantification Tool")
 
+with st.expander("How to use this tool", expanded=False):
+    st.markdown(
+        """
+**Parameters**
+
+- **A** is the lower asymptote  
+- **B** indicates steepness (proportional to the slope of the curve at the mid-point)  
+- **C** is the concentration corresponding to 50% of the response (**EC₅₀**)  
+- **D** is the upper asymptote  
+
+
+**Edge cases**
+
+These plots show all the edge-case combinations of parameters **A**, **B**, **C**, and **D**.  
+Each panel represents a minimum/maximum setting of those parameters so users can see how extreme
+values change the shape and behavior of the response curve.  
+
+
+**Add curve**
+
+Enter a name for the base curve. Once submitted, it will be saved and displayed in the curve list
+at the bottom-left.
+"""
+    )
+
+
 # ======= Session State / Defaults =======
 DEFAULTS = {
     # Ranges (min/max) only; main graph uses averages
@@ -365,9 +391,6 @@ def suggest_factor_from_ranges(
             best_key = key
 
     return best
-
-# ======= RULE =======
-st.markdown("---")
 
 # ======= Row 1: Dilution series (left) | Graph (right) =======
 left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
@@ -909,3 +932,20 @@ with col_preview:
         st.caption(f"Using custom factors: {custom_factors}")
     else:
         st.caption(f"Using even dilution factor: {even_factor:.6g}")
+
+st.markdown("---")
+st.markdown("**References**")
+st.markdown(
+    """
+- MyAssays. (n.d.). *Four parameter logistic regression.* MyAssays.  
+  https://www.myassays.com/four-parameter-logistic-regression.html  
+
+- Smirnov, P., Kofia, V., Maru, A., Freeman, M., Ho, C., El-Hachem, N., Adam, G.-A., Ba-alawi, W., Safikhani, Z., & Haibe-Kains, B. (2018).  
+  *PharmacoDB: An integrative database for mining in vitro anticancer drug screening studies.*  
+  Nucleic Acids Research, 46(D1), D994–D1002.  
+  https://doi.org/10.1093/nar/gkx911  
+
+- United States Pharmacopeial Convention. (2012).  
+  *Analysis of biological assays (USP 35 General Chapter 〈1034〉).*  
+    """
+)

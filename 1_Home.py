@@ -69,8 +69,40 @@ with header_text_col:
     Use the sidebar to navigate between pages.
 
     - **Home**: Overview of the simulator and usage notes  
-    - **4PL Quantification**: Interactive tool to visualize and fit 4-parameter logistic (4PL) curves
+    - **4PL Simulator**: Interactive tool to visualize and fit 4-parameter logistic (4PL) curves
+    - **2PL Simulator**: Interactive tool to visualize and fit 2-parameter logistic (2PL) curves
     """)
+
+st.markdown("---")
+st.markdown("### 📋 Usage Notes")
+st.markdown(
+    """
+**Set the dilution series**
+
+Begin by entering the **top concentration** and the **dilution factor**. 
+These values define the concentration levels used to generate the dose–response curves.
+
+**Specify parameter ranges**
+
+Each model includes a set of parameters that control curve shape and behavior. 
+Specify the minimum and maximum values for these parameters to explore their full range and generate the corresponding dose–response curves.
+
+**Run and save experiment**
+
+After entering your first set of inputs, the tool will generate the corresponding dose-response curves. 
+You may save this run, then enter additional configurations to compare multiple rounds of experiments.
+
+**Use the Dilution Scheme Recommendations (Optional)** 
+
+Instead of manually entering dilution values, you may choose to use the Dilution Scheme Recommender, which proposes a scheme based on your parameter ranges. 
+
+**Review and export Result**
+
+All experiment runs are logged in the table at the bottom of the page. You may export the full table as a CSV file for further analysis or documentation. 
+
+"""
+)
+
 
 
 # ==============================================================

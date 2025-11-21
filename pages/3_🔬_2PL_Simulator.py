@@ -676,146 +676,7 @@ with graph_col:
             _rerun()
 
     st.markdown("---")
-    st.markdown("### Dilution scheme recommender (from B, C ranges)")
-
-    with st.expander("How this suggestion works (2PL)", expanded=False):
-        st.markdown(
-            f"""
-This tool recommends **even dilution factor(s)** given the current
-2PL ranges for slope **B** and EC₅₀ **C**, and the selected relative
-potencies (RPs).
-
-For each candidate factor (log-spaced between **1.2** and **10**), it:
-
-1. Builds an 8-point dilution series.  
-2. Evaluates **4 edge combinations** of (B, C):  
-   (b_min, c_min), (b_min, c_max), (b_max, c_min), (b_max, c_max).  
-3. For each combination & RP, classifies each well using normalized
-   response (y):
-
-   - Lower anchor: y ≤ {LOWER_ANCHOR_MAX:.2f}  
-   - Linear band: {LINEAR_LOW:.2f} ≤ y ≤ {LINEAR_HIGH:.2f}  
-   - Upper anchor: y ≥ {UPPER_ANCHOR_MIN:.2f}  
-
-A factor is **acceptable** if in the *worst case* over all edges and RPs:
-
-- ≥ 2 points are in the linear band, and  
-- ≥ 1 point is in **each** anchor.
-
-Preferred factors have ≥ 3 linear points and ≥ 2 anchor points at both
-ends. The score reflects how well these criteria are met.
-"""
-        )
-
-    n_cand = st.slider(
-        "Search resolution (# of candidate factors between 1.2 and 10, "
-        "log-spaced)",
-        min_value=20,
-        max_value=200,
-        value=80,
-        step=10,
-        help="More candidates = finer recommendation but slower.",
-        key="n_cand_recommender_2pl",
-    )
-
-    if st.button(
-        "Recommend even dilution factors from B,C ranges",
-        type="primary",
-        key="btn_recommend_factors_2pl",
-    ):
-        b_min_local = float(st.session_state["b_min_2pl"])
-        b_max_local = float(st.session_state["b_max_2pl"])
-        c_min_local = float(st.session_state["c_min_2pl"])
-        c_max_local = float(st.session_state["c_max_2pl"])
-
-        factors = np.unique(
-            np.round(
-                np.logspace(np.log10(1.2), np.log10(10.0), int(n_cand)),
-                6,
-            )
-        )
-
-        rows = []
-        for f_ in factors:
-            res = _evaluate_factor_2pl(
-                factor=f_,
-                top_conc=top_conc,
-                b_min=b_min_local,
-                b_max=b_max_local,
-                c_min=c_min_local,
-                c_max=c_max_local,
-                rps_list=rp_sorted,
-            )
-            rows.append(res)
-
-        if rows:
-            rec_df = pd.DataFrame(
-                [
-                    {
-                        "factor": r["factor"],
-                        "worst_linear": r["worst_linear"],
-                        "worst_lower": r["worst_lower"],
-                        "worst_upper": r["worst_upper"],
-                        "meets_min": r["meets_min"],
-                        "meets_preferred": r["meets_preferred"],
-                        "score": r["score"],
-                    }
-                    for r in rows
-                ]
-            )
-
-            rec_df = rec_df.sort_values(
-                by=["meets_min", "meets_preferred", "score", "factor"],
-                ascending=[False, False, False, True],
-            )
-            st.session_state["rec_df_2pl"] = rec_df
-        else:
-            st.session_state["rec_df_2pl"] = None
-            st.warning("No candidate factors were evaluated (check settings).")
-
-    rec_df = st.session_state.get("rec_df_2pl", None)
-    if rec_df is not None and not rec_df.empty:
-        st.markdown("**Recommended even dilution factors** (top 20)")
-        rec_df_disp = rec_df.copy()
-        rec_df_disp["factor"] = rec_df_disp["factor"].map(lambda v: f"{v:.6g}")
-        st.dataframe(rec_df_disp.head(20), use_container_width=True, height=320)
-
-        st.download_button(
-            "Download all recommendations (CSV)",
-            data=rec_df.to_csv(index=False).encode("utf-8"),
-            file_name="dilution_factor_recommendations_2pl.csv",
-            mime="text/csv",
-            key="btn_dl_rec_csv_2pl",
-        )
-
-        top_20 = rec_df.head(20)["factor"].tolist()
-        st.markdown(
-            "#### Load a recommended factor into the current dilution settings"
-        )
-
-        selected_factor = st.selectbox(
-            "Choose a recommended factor to apply:",
-            options=top_20,
-            format_func=lambda v: f"{v:.6g}",
-            key="rec_factor_select_2pl",
-        )
-
-        if st.button("Use selected factor", key="btn_use_rec_factor_2pl"):
-            st.session_state["rec_factor_value_2pl"] = float(selected_factor)
-            st.session_state["apply_rec_factor_2pl"] = True
-            st.success(
-                f"Will set even dilution factor to {selected_factor:.6g} and "
-                "clear custom factors."
-            )
-            _rerun()
-    else:
-        st.info(
-            "Click **Recommend even dilution factors from B,C ranges** to "
-            "generate a ranked table of candidate dilution factors."
-        )
-
-# ========================================================================== #
-st.markdown("---")
+    
 # ========================================================================== #
 
 # ===================== Edge-case subplots (B,C extremes) ===================
@@ -974,3 +835,13 @@ with col_preview:
         st.caption(f"Using custom factors: {custom_factors}")
     else:
         st.caption(f"Using even dilution factor: {even_factor:.6g}")
+
+st.markdown("---")
+st.markdown("**References**")
+st.markdown(
+    """
+- Duda, J., Hengstler, J. G., & Rahnenführer, J. (2022). *td2pLL: An intuitive time-dose-response model for cytotoxicity data with varying exposure durations.* Computational Toxicology, 23, 100234. https://doi.org/10.1016/j.comtox.2022.100234  
+- Kuster Lab. (2024, Jul 17). *Statistical analysis of dose-response curves.* Wiley Analytical Science. https://analyticalscience.wiley.com/content/article-do/statistical-analysis-dose-response-curves  
+- O’Brien, T. E., & Silcox, J. (2021). *Efficient experimental design for dose response modelling.* Journal of Applied Statistics, 48(13–15), 2864–2888. https://doi.org/10.1080/02664763.2021.1880556
+    """
+)
