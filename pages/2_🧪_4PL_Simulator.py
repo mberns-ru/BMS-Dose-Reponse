@@ -448,6 +448,15 @@ with graph_col:
 # ======= Row 2: Parameter ranges (min/max) | Graph continues (right) =======
 with left_panel:
     st.markdown("### Parameter ranges (min/max)")
+with st.expander("What do A, B, C, and D mean?", expanded=False):
+        st.markdown(
+            """
+**A** – Lower asymptote  
+**B** – Steepness (slope around the midpoint)  
+**C** – EC₅₀: concentration giving 50% response  
+**D** – Upper asymptote  
+            """
+        )
     r1c1, r1c2 = st.columns(2)
     with r1c1:
         st.number_input("a_min", 0.0, 2.0, step=0.01, key="a_min")
