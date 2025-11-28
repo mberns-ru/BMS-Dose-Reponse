@@ -482,6 +482,17 @@ with graph_col:
 # ======= Row 2: Parameter ranges (min/max) | Graph continues (right) =======
 with left_panel:
     st.markdown("### Parameter ranges (min/max)")
+    with st.expander("What do A, B, C, D, E mean?", expanded=False):
+        st.markdown(
+            """
+**A** – Lower asymptote  
+**B** – Steepness (slope around the midpoint)  
+**C** – EC₅₀: concentration giving 50% response  
+**D** – Upper asymptote  
+**E** – Asymmetry parameter controlling curve skew
+            """
+        )
+
 
     # 先确保默认值只在第一次设置（避免与控件的key冲突）
     defaults = {
