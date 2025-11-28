@@ -398,6 +398,8 @@ left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 
 with left_panel:
     st.subheader("Dilution series")
+    
+
 
     with st.expander("What does 'Dilution series' mean?", expanded=False):
         st.markdown(
@@ -448,6 +450,7 @@ with graph_col:
 # ======= Row 2: Parameter ranges (min/max) | Graph continues (right) =======
 with left_panel:
     st.markdown("### Parameter ranges (min/max)")
+
     with st.expander("What do A, B, C, and D mean?", expanded=False):
         st.markdown(
             """
@@ -458,28 +461,64 @@ with left_panel:
             """
         )
 
-    r1c1, r1c2 = st.columns(2)
-    with r1c1:
-        st.number_input("a_min", 0.0, 2.0, step=0.01, key="a_min")
-        st.number_input("c_min", 1e-6, 1e6, step=0.01, format="%.6g", key="c_min")
-    with r1c2:
-        st.number_input("a_max", 0.0, 2.0, step=0.01, key="a_max")
-        st.number_input("c_max", 1e-6, 1e6, step=0.01, format="%.6g", key="c_max")
+    defaults = {
+            "a_min": 0.8, "a_max": 1.2,
+            "b_min": -2.0, "b_max": -0.5,
+            "c_min": 0.1, "c_max": 3.0,
+            "d_min": 0.0, "d_max": 0.2,
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-    r2c1, r2c2 = st.columns(2)
-    with r2c1:
-        st.number_input("b_min", -10.0, 10.0, step=0.01, key="b_min")
-        st.number_input("d_min", 0.0, 1.0, step=0.01, key="d_min")
-    with r2c2:
-        st.number_input("b_max", -10.0, 10.0, step=0.01, key="b_max")
-        st.number_input("d_max", 0.0, 1.0, step=0.01, key="d_max")
+        
+    colA, colMin, colMax = st.columns([0.6, 1, 1])
+    with colA:
+        st.markdown("**Parameter**")
+    with colMin:
+        st.markdown("**Min**")
+    with colMax:
+        st.markdown("**Max**")
 
-    # ---- Relative potencies (applied to c only) ----
+    def row(param_label, k_min, k_max, min_cfg, max_cfg):
+        cA, cMin, cMax = st.columns([0.6, 1, 1])
+        with cA:
+            st.markdown(param_label)
+        with cMin:
+            st.number_input(
+                "", key=k_min, label_visibility="collapsed", **min_cfg
+            )
+        with cMax:
+            st.number_input(
+                 "", key=k_max, label_visibility="collapsed", **max_cfg
+            )
+
+    # A
+    row("A", "a_min", "a_max",
+        {"min_value": 0.0, "max_value": 2.0, "step": 0.01},
+        {"min_value": 0.0, "max_value": 2.0, "step": 0.01})
+
+    # B
+    row("B", "b_min", "b_max",
+        {"min_value": -10.0, "max_value": 10.0, "step": 0.01},
+        {"min_value": -10.0, "max_value": 10.0, "step": 0.01})
+
+    # C
+    row("C", "c_min", "c_max",
+        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"},
+        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"})
+
+     # D
+    row("D", "d_min", "d_max",
+        {"min_value": 0.0, "max_value": 1.0, "step": 0.01},
+        {"min_value": 0.0, "max_value": 1.0, "step": 0.01})
+
+        # ---- Relative potencies (applied to c only) ----
     st.text_input(
-        "Relative potencies (comma/space separated)",
-        key="rps_str",
-        placeholder="e.g., 0.25, 0.5  1, 1.5, 2"
-    )
+            "Relative potencies (comma/space separated)",
+            key="rps_str",
+            placeholder="e.g., 0.25, 0.5  1, 1.5, 2"
+        )
     user_rps = _parse_rps(st.session_state["rps_str"])
     # Default to 40%, reference, 160% if empty
     if not user_rps:
@@ -915,14 +954,14 @@ edge_fig.add_annotation(
 
 edge_fig.update_layout(hovermode="closest")
 
-# 禁用已有曲线/散点的 hover（避免抢气泡）
+
 for t in list(edge_fig.data):
     mode = getattr(t, "mode", "") or ""
     if "text" not in mode:
         t.update(hoverinfo="skip", hovertemplate=None)
 
 
-# 2) 你的 4x4 说明文本矩阵（按行给出的 16 条）
+
 tooltip_texts_4pl = [
     [
         "Shallow slope, highly sensitive drug (low EC50), low top response, low baseline — almost flat; barely measurable effect",
@@ -949,27 +988,27 @@ tooltip_texts_4pl = [
         "Steep slope, weak drug, high top, high baseline — steep curve but requires very high dose",
     ],
 ]
-# ----- 4PL edge-case hover badges：把“ⓘ”放在右下角 -----
+# ----- 4PL edge-case hover badges：
 
 N_COLS = 4
 x_min = float(np.min(x_dense_edge))
 x_max = float(np.max(x_dense_edge))
-x_pad = 0.02 * (x_max - x_min)  # 往左缩一点，避免贴死
+x_pad = 0.02 * (x_max - x_min)  
 
 for idx, (aa, bb, cc, dd) in enumerate(combos, start=1):
     row0 = (idx - 1) // N_COLS
     col0 = (idx - 1) %  N_COLS
     r, c = row0 + 1, col0 + 1
 
-    # ---- ★ y 坐标统一放 y=0 ----
+    # ---- ★ y=0 ----
     y_icon = 0.0
 
-    # ---- ★ x 坐标放在最右边（往左缩一点 padding） ----
+    # ---- ★ x  ----
     x_icon = x_max - x_pad
 
     tip = tooltip_texts_4pl[row0][col0]
 
-    # ---- 圆圈（负责 hover）----
+    # ---- hover----
     edge_fig.add_scatter(
         x=[x_icon], y=[y_icon],
         mode="markers",
@@ -986,7 +1025,7 @@ for idx, (aa, bb, cc, dd) in enumerate(combos, start=1):
         row=r, col=c,
     )
 
-    # ---- i 字 ----
+    # ---- i  ----
     edge_fig.add_scatter(
         x=[x_icon], y=[y_icon],
         mode="text",
@@ -998,7 +1037,7 @@ for idx, (aa, bb, cc, dd) in enumerate(combos, start=1):
     )
 
 
-# 让 hover 气泡底色统一
+#  hover 
 edge_fig.update_layout(hoverlabel=dict(bgcolor="white"))
 
 
