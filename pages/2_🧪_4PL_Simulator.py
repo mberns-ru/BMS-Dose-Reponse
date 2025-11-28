@@ -398,11 +398,22 @@ left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 
 with left_panel:
     st.subheader("Dilution series")
+
+    with st.expander("What does 'Dilution series' mean?", expanded=False):
+        st.markdown(
+                "The **dilution factor** is how much each step is diluted from the previous one, "
+                "creating a series of decreasing doses for the curve. For example, a factor of 3 "
+                "means each well is 1/3 of the concentration of the prior well."
+        )
+        
+
     st.number_input(
-        "Top concentration",
-        min_value=1e-12, max_value=1e12,
-        step=1.0, format="%.6g", key="top_conc"
-    )
+    "Top concentration",
+    min_value=1e-12, max_value=1e12,
+    step=1.0, format="%.6g", key="top_conc",
+    help="The top concentration is the highest dose you start with, setting the upper limit of the dose–response curve."
+)
+
     st.number_input(
         "Even dilution factor (applied 7×)",
         min_value=1.0001, max_value=1e9,
@@ -426,6 +437,8 @@ with left_panel:
             "Falling back to even factor."
         )
         custom_factors = []
+
+
 
 # Graph header and placeholder begin in Row 1 and continue in Row 2
 with graph_col:
@@ -807,6 +820,14 @@ st.markdown("---")
 
 # ======= 16 Edge-case subplots =======
 st.markdown("### Edge cases: all min/max combinations of A, B, C, D")
+with st.expander("What is Edge cases?", expanded=False):
+    st.markdown(
+        "These plots show all the edge-case combinations of parameters **A, B, C, D, and/or E**. "
+        "Each panel represents a minimum/maximum setting of those parameters so users can see how "
+        "extreme values change the shape and behavior of the response curve."
+    )
+
+
 
 x_sparse_edge = dp.generate_log_conc(
     top_conc=top_conc, dil_factor=even_factor, n_points=8, dense=False,
