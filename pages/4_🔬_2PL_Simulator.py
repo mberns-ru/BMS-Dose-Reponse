@@ -352,6 +352,13 @@ left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 
 with left_panel:
     st.subheader("Dilution series")
+    with st.expander("What is a dilution series?", expanded=False):
+        st.markdown(
+            "The **dilution factor** is how much each step is diluted from the previous one, "
+            "creating a series of decreasing doses for the curve. "
+            "For example, a factor of **3** means each well is **1/3** of the previous well. "
+            "Providing exactly **7** custom factors overrides the even factor."
+        )
 
     st.number_input(
         "Top concentration",
@@ -688,6 +695,12 @@ with graph_col:
 # ===================== Edge-case subplots (B,C extremes) ===================
 
 st.markdown("### Edge cases (2PL): all min/max combinations of B, C")
+with st.expander("What is Edge cases?", expanded=False):
+    st.markdown(
+        "These plots show all the edge-case combinations of parameters **A, B, C, D, and/or E**. "
+        "Each panel represents a minimum/maximum setting of those parameters so users can see how "
+        "extreme values change the shape and behavior of the response curve."
+    )
 
 x_sparse_edge = dp.generate_log_conc(
     top_conc=top_conc,
