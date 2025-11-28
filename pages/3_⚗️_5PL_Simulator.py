@@ -422,7 +422,14 @@ def suggest_factor_from_ranges(
 left_panel, graph_col = st.columns([0.9, 1.6], gap="large")
 
 with left_panel:
-    st.markdown("### Dilution settings")
+    st.markdown("### Dilution series")
+    with st.expander("What is a Dilution series?", expanded=False):
+        st.markdown(
+            "The **dilution factor** is how much each step is diluted from the previous one, "
+            "creating a series of decreasing doses for the curve. "
+            "For example, a factor of **3** means each well is **1/3** of the previous well. "
+            "Providing exactly **7** custom factors overrides the even factor."
+        )
 
     st.number_input(
         "Top concentration",
@@ -432,7 +439,11 @@ with left_panel:
         step=0.01,
         format="%.6g",
         key="top_conc",
+        help="The top concentration is the highest dose you start with, setting the upper limit of the dose–response curve."
     )
+
+
+
 
     st.number_input(
         "Even dilution factor",
@@ -442,12 +453,14 @@ with left_panel:
         step=0.01,
         format="%.6g",
         key="even_dil_factor",
+        help="How much each step is diluted from the previous one (e.g., 2× means each well is half of the previous concentration)."
     )
 
     st.text_input(
         "Custom dilution factors (7 numbers, comma/space separated)",
         key="dilution_str",
         placeholder="e.g., 3 3 3 3 3 3 3",
+        help="Provide exactly 7 sequential dilution multipliers (high→low). If present, these override the even dilution factor."
     )
     custom_factors = _parse_list(st.session_state["dilution_str"])
     if len(custom_factors) == 0:
@@ -702,6 +715,13 @@ st.markdown("---")
 
 # ======= 32 Edge-case subplots (A,B,C,D,E min/max) =======
 st.markdown("### Edge cases: all min/max combinations of A, B, C, D, E (32 panels)")
+with st.expander("What is Edge cases?", expanded=False):
+    st.markdown(
+        "These plots show all the edge-case combinations of parameters **A, B, C, D, and/or E**. "
+        "Each panel represents a minimum/maximum setting of those parameters so users can see how "
+        "extreme values change the shape and behavior of the response curve."
+    )
+
 
 x_sparse_edge = dp.generate_log_conc(
     top_conc=top_conc, dil_factor=even_factor, n_points=8, dense=False,
@@ -727,9 +747,9 @@ edge_fig = make_subplots(
     shared_xaxes=True, shared_yaxes=True,
     horizontal_spacing=0.02, vertical_spacing=0.06,
     subplot_titles=[
-        f"A={a_:.3g}, B={b_:.3g}, C={c_:.3g}, D={d_:.3g}, E={e_:.3g}"
-        for (a_, b_, c_, d_, e_) in combos_edge
-    ],
+    f"A={a_:.3g}, B={b_:.3g}, C={c_:.3g}<br>D={d_:.3g}, E={e_:.3g}"
+    for (a_, b_, c_, d_, e_) in combos_edge
+],
 )
 
 for idx, (aa, bb, cc, dd, ee_) in enumerate(combos_edge, start=1):
