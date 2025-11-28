@@ -776,6 +776,105 @@ edge_fig.add_annotation(
     font=dict(size=14),
 )
 
+
+
+# ---------- Info icons (same placement as 4PL: right edge at y=0) ----------
+# Make sure tooltip_texts_5pl is defined above (your 32-item list).
+
+tooltip_texts_5pl = [
+    # 1..32（E 最快变，顺序与 itertools.product(A,B,C,D,E) 完全一致）
+    "Low baseline, highly sensitive, shallow slope, weak max response, symmetric",
+    "Low baseline, highly sensitive, shallow slope, weak max response, asymmetric",
+    "Low baseline, highly sensitive, shallow slope, strong max response, symmetric",
+    "Low baseline, highly sensitive, shallow slope, strong max response, asymmetric",
+    "Low baseline, low sensitivity, shallow slope, weak max response, symmetric",
+    "Low baseline, low sensitivity, shallow slope, weak max response, asymmetric",
+    "Low baseline, low sensitivity, shallow slope, strong max response, symmetric",
+    "Low baseline, low sensitivity, shallow slope, strong max response, asymmetric",
+    "Low baseline, highly sensitive, steep slope, weak max response, symmetric",
+    "Low baseline, highly sensitive, steep slope, weak max response, asymmetric",
+    "Low baseline, highly sensitive, steep slope, strong max response, symmetric",
+    "Low baseline, highly sensitive, steep slope, strong max response, asymmetric",
+    "Low baseline, low sensitivity, steep slope, weak max response, symmetric",
+    "Low baseline, low sensitivity, steep slope, weak max response, asymmetric",
+    "Low baseline, low sensitivity, steep slope, strong max response, symmetric",
+    "Low baseline, low sensitivity, steep slope, strong max response, asymmetric",
+    "High baseline, highly sensitive, shallow slope, weak max response, symmetric",
+    "High baseline, highly sensitive, shallow slope, weak max response, asymmetric",
+    "High baseline, highly sensitive, shallow slope, strong max response, symmetric",
+    "High baseline, highly sensitive, shallow slope, strong max response, asymmetric",
+    "High baseline, low sensitivity, shallow slope, weak max response, symmetric",
+    "High baseline, low sensitivity, shallow slope, weak max response, asymmetric",
+    "High baseline, low sensitivity, shallow slope, strong max response, symmetric",
+    "High baseline, low sensitivity, shallow slope, strong max response, asymmetric",
+    "High baseline, highly sensitive, steep slope, weak max response, symmetric",
+    "High baseline, highly sensitive, steep slope, weak max response, asymmetric",
+    "High baseline, highly sensitive, steep slope, strong max response, symmetric",
+    "High baseline, highly sensitive, steep slope, strong max response, asymmetric",
+    "High baseline, low sensitivity, steep slope, weak max response, symmetric",
+    "High baseline, low sensitivity, steep slope, weak max response, asymmetric",
+    "High baseline, low sensitivity, steep slope, strong max response, symmetric",
+    "High baseline, low sensitivity, steep slope, strong max response, asymmetric",
+]
+
+
+# columns in the 5PL edge panel grid
+N_COLS = 8
+
+# compute right-edge x and a small left padding so the circle isn't glued to the frame
+x_min = float(np.min(x_dense_edge))
+x_max = float(np.max(x_dense_edge))
+x_pad = 0.02 * (x_max - x_min)   # tweak 0.01~0.04 if you want more/less gap
+
+# nicer hover label background
+edge_fig.update_layout(hoverlabel=dict(bgcolor="white"))
+
+for idx, (_aa, _bb, _cc, _dd, _ee) in enumerate(combos_edge, start=1):
+    row0 = (idx - 1) // N_COLS      # 0..3
+    col0 = (idx - 1) %  N_COLS      # 0..7
+    r, c = row0 + 1, col0 + 1       # plotly is 1-based
+
+    # place icon at y=0 axis line, at the right-most x (with a tiny left pad)
+    y_icon = 0.0
+    x_icon = x_max - x_pad
+
+    # tooltip text mapped 1:1 with the 32 edge cases
+    tip = tooltip_texts_5pl[idx - 1]
+
+    # circle marker (handles hover)
+    edge_fig.add_scatter(
+        x=[x_icon], y=[y_icon],
+        mode="markers",
+        marker=dict(
+            symbol="circle",
+            size=20,
+            color="white",
+            line=dict(color="#475569", width=1.5)
+        ),
+        hovertext=[tip],
+        hoverinfo="text",
+        hovertemplate="%{hovertext}<extra></extra>",
+        showlegend=False,
+        row=r, col=c,
+    )
+
+    # the "i" glyph inside the circle (no hover here; hover handled by the circle)
+    edge_fig.add_scatter(
+        x=[x_icon], y=[y_icon],
+        mode="text",
+        text=["i"],
+        textfont=dict(size=13, color="#475569"),
+        hoverinfo="skip",
+        showlegend=False,
+        row=r, col=c,
+    )
+# ---------- end info icons ----------
+
+
+
+
+
+
 st.plotly_chart(edge_fig, config={"responsive": True}, use_container_width=True)
 
 # ======= Row 3: Saved curves (left) | Dilution preview (right) =======
