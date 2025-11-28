@@ -38,6 +38,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 st.set_page_config(page_title="4PL Quantification Tool", layout="wide")
 
 # ======= Title =======
@@ -879,7 +880,102 @@ edge_fig.add_annotation(
     font=dict(size=14),
 )
 
+# ----- 4PL edge-case hover badges: stable circle+i with hover text -----
+
+edge_fig.update_layout(hovermode="closest")
+
+# 禁用已有曲线/散点的 hover（避免抢气泡）
+for t in list(edge_fig.data):
+    mode = getattr(t, "mode", "") or ""
+    if "text" not in mode:
+        t.update(hoverinfo="skip", hovertemplate=None)
+
+
+# 2) 你的 4x4 说明文本矩阵（按行给出的 16 条）
+tooltip_texts_4pl = [
+    [
+        "Shallow slope, highly sensitive drug (low EC50), low top response, low baseline — almost flat; barely measurable effect",
+        "Shallow slope, sensitive drug, low top, high baseline — small dynamic range (baseline starts high)",
+        "Shallow slope, weak drug (high EC50), low top, low baseline — minimal effect overall",
+        "Shallow slope, weak drug, low top, high baseline — needs high dose to see a modest effect",
+    ],
+    [
+        "Steep slope, sensitive drug, low top, low baseline — sharp jump but small ceiling",
+        "Steep slope, sensitive, low top, high baseline — steep, compressed dynamic range",
+        "Steep slope, weak drug, low top, low baseline — sharp transition but cannot reach high effect",
+        "Steep slope, weak drug, low top, high baseline — steep curve but needs high dose; limited max effect",
+    ],
+    [
+        "Shallow slope, sensitive drug, high top, low baseline — gradual rise; small slope",
+        "Shallow slope, sensitive, high top, high baseline — shallow dynamic response",
+        "Shallow slope, weak drug, high top, low baseline — fairly flat; drug ineffective at normal doses",
+        "Shallow slope, weak drug, high top, high baseline — small rise from an already-high baseline",
+    ],
+    [
+        "Steep slope, sensitive drug, high top, low baseline — strong sigmoidal curve",
+        "Steep slope, sensitive drug, high top, high baseline — steep rise starting from high baseline",
+        "Steep slope, weak drug, high top, low baseline — needs high dose but transitions sharply",
+        "Steep slope, weak drug, high top, high baseline — steep curve but requires very high dose",
+    ],
+]
+# ----- 4PL edge-case hover badges：把“ⓘ”放在右下角 -----
+
+N_COLS = 4
+x_min = float(np.min(x_dense_edge))
+x_max = float(np.max(x_dense_edge))
+x_pad = 0.02 * (x_max - x_min)  # 往左缩一点，避免贴死
+
+for idx, (aa, bb, cc, dd) in enumerate(combos, start=1):
+    row0 = (idx - 1) // N_COLS
+    col0 = (idx - 1) %  N_COLS
+    r, c = row0 + 1, col0 + 1
+
+    # ---- ★ y 坐标统一放 y=0 ----
+    y_icon = 0.0
+
+    # ---- ★ x 坐标放在最右边（往左缩一点 padding） ----
+    x_icon = x_max - x_pad
+
+    tip = tooltip_texts_4pl[row0][col0]
+
+    # ---- 圆圈（负责 hover）----
+    edge_fig.add_scatter(
+        x=[x_icon], y=[y_icon],
+        mode="markers",
+        marker=dict(
+            symbol="circle",
+            size=20,
+            color="white",
+            line=dict(color="#475569", width=1.5)
+        ),
+        hovertext=[tip],
+        hoverinfo="text",
+        hovertemplate="%{hovertext}<extra></extra>",
+        showlegend=False,
+        row=r, col=c,
+    )
+
+    # ---- i 字 ----
+    edge_fig.add_scatter(
+        x=[x_icon], y=[y_icon],
+        mode="text",
+        text=["i"],
+        textfont=dict(size=13, color="#475569"),
+        hoverinfo="skip",
+        showlegend=False,
+        row=r, col=c,
+    )
+
+
+# 让 hover 气泡底色统一
+edge_fig.update_layout(hoverlabel=dict(bgcolor="white"))
+
+
 st.plotly_chart(edge_fig, config={"responsive": True}, use_container_width=True)
+
+
+
+
 
 # ======= RULE =======
 st.markdown("---")
