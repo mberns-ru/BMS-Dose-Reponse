@@ -482,27 +482,67 @@ with graph_col:
 # ======= Row 2: Parameter ranges (min/max) | Graph continues (right) =======
 with left_panel:
     st.markdown("### Parameter ranges (min/max)")
-    r1c1, r1c2 = st.columns(2)
-    with r1c1:
-        st.number_input("a_min", 0.0, 2.0, step=0.01, key="a_min")
-        st.number_input("c_min", 1e-6, 1e6, step=0.01, format="%.6g", key="c_min")
-    with r1c2:
-        st.number_input("a_max", 0.0, 2.0, step=0.01, key="a_max")
-        st.number_input("c_max", 1e-6, 1e6, step=0.01, format="%.6g", key="c_max")
 
-    r2c1, r2c2 = st.columns(2)
-    with r2c1:
-        st.number_input("b_min", -10.0, 10.0, step=0.01, key="b_min")
-        st.number_input("d_min", 0.0, 1.0, step=0.01, key="d_min")
-    with r2c2:
-        st.number_input("b_max", -10.0, 10.0, step=0.01, key="b_max")
-        st.number_input("d_max", 0.0, 1.0, step=0.01, key="d_max")
+    # 先确保默认值只在第一次设置（避免与控件的key冲突）
+    defaults = {
+        "a_min": 0.8, "a_max": 1.2,
+        "b_min": -2.0, "b_max": -0.5,
+        "c_min": 0.1, "c_max": 3.0,
+        "d_min": 0.0, "d_max": 0.2,
+        "e_min": 0.8, "e_max": 1.2,
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-    r3c1, r3c2 = st.columns(2)
-    with r3c1:
-        st.number_input("e_min", 0.1, 5.0, step=0.01, key="e_min")
-    with r3c2:
-        st.number_input("e_max", 0.1, 5.0, step=0.01, key="e_max")
+    # 表头
+    colA, colMin, colMax = st.columns([0.6, 1, 1])
+    with colA:
+        st.markdown("**Parameter**")
+    with colMin:
+        st.markdown("**Min**")
+    with colMax:
+        st.markdown("**Max**")
+
+    def row(param_label, k_min, k_max, min_cfg, max_cfg):
+        cA, cMin, cMax = st.columns([0.6, 1, 1])
+        with cA:
+            st.markdown(param_label)
+        with cMin:
+            st.number_input(
+                "", key=k_min, label_visibility="collapsed", **min_cfg
+            )
+        with cMax:
+            st.number_input(
+                "", key=k_max, label_visibility="collapsed", **max_cfg
+            )
+
+    # A
+    row("A", "a_min", "a_max",
+        {"min_value": 0.0, "max_value": 2.0, "step": 0.01},
+        {"min_value": 0.0, "max_value": 2.0, "step": 0.01})
+
+    # B
+    row("B", "b_min", "b_max",
+        {"min_value": -10.0, "max_value": 10.0, "step": 0.01},
+        {"min_value": -10.0, "max_value": 10.0, "step": 0.01})
+
+    # C
+    row("C", "c_min", "c_max",
+        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"},
+        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"})
+
+    # D
+    row("D", "d_min", "d_max",
+        {"min_value": 0.0, "max_value": 1.0, "step": 0.01},
+        {"min_value": 0.0, "max_value": 1.0, "step": 0.01})
+
+    # E
+    row("E", "e_min", "e_max",
+        {"min_value": 0.1, "max_value": 5.0, "step": 0.01},
+        {"min_value": 0.1, "max_value": 5.0, "step": 0.01})
+
+
 
     # ---- Relative potencies (applied to c only) ----
     st.text_input(
