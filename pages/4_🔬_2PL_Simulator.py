@@ -12,6 +12,12 @@ import streamlit as st
 
 import dose_response as dp
 
+
+# ---- Fix Plotly annotation xref/yref for subplot #1 vs #2.. ----
+def axis_domain_ref(ax: str, i: int) -> str:
+    return f"{ax} domain" if i == 1 else f"{ax}{i} domain"
+
+
 # ===================== Page config (must be first Streamlit call) ===========
 
 st.set_page_config(
@@ -770,6 +776,84 @@ edge_fig.add_annotation(
     xshift=-40,
     font=dict(size=14),
 )
+
+# --------- Add tooltips (question mark in top-right corner of each subplot) -------
+import html  # for safe escaping of tooltip text
+
+# Row/column-specific explanations for each subplot (2x2 grid)
+# 2PL MODEL
+tooltip_texts_2pl = [
+    # Row 1 (col1, col2)
+    [
+        "Steep & potent: sharp rise at low concentration",
+        "Steep but low potency: sharp rise only at high concentration",
+    ],
+    # Row 2 (col1, col2)
+    [
+        "Shallow but potent: gradual increase starting early",
+        "Shallow & weak: slow rise and needs high concentration",
+    ],
+]
+
+
+
+
+# ---------- Info icons for 2PL (same placement as 4PL/5PL: right edge at y=0) ----------
+N_COLS_2PL = 2
+
+# 用当前 2PL 边缘图的 x 轴范围
+x_min_2pl = float(np.min(x_dense_edge))
+x_max_2pl = float(np.max(x_dense_edge))
+x_pad_2pl = 0.02 * (x_max_2pl - x_min_2pl)
+
+# hover 白底更清晰
+edge_fig.update_layout(hoverlabel=dict(bgcolor="white"))
+
+# tooltip 文本拍平成一维（行优先顺序：row1 col1, row1 col2, row2 col1, row2 col2）
+tooltips_flat_2pl = [t for row in tooltip_texts_2pl for t in row]
+
+for idx in range(1, 4 + 1):  # 2x2 = 4 subplots
+    row0 = (idx - 1) // N_COLS_2PL   # 0..1
+    col0 = (idx - 1) %  N_COLS_2PL   # 0..1
+    r, c = row0 + 1, col0 + 1        # plotly 1-based
+
+    # 放在 y=0 轴线上，x 轴最右侧留点边距
+    y_icon = 0.0
+    x_icon = x_max_2pl - x_pad_2pl
+    tip = tooltips_flat_2pl[idx - 1]
+
+    # 圆圈（处理 hover）
+    edge_fig.add_scatter(
+        x=[x_icon], y=[y_icon],
+        mode="markers",
+        marker=dict(
+            symbol="circle",
+            size=20,
+            color="white",
+            line=dict(color="#475569", width=1.5)
+        ),
+        hovertext=[tip],
+        hoverinfo="text",
+        hovertemplate="%{hovertext}<extra></extra>",
+        showlegend=False,
+        row=r, col=c,
+    )
+
+    # 圆圈里的 “i”
+    edge_fig.add_scatter(
+        x=[x_icon], y=[y_icon],
+        mode="text",
+        text=["i"],
+        textfont=dict(size=13, color="#475569"),
+        hoverinfo="skip",
+        showlegend=False,
+        row=r, col=c,
+    )
+# ---------- end info icons for 2PL ----------
+
+
+
+
 
 st.plotly_chart(edge_fig, config={"responsive": True}, use_container_width=True)
 
