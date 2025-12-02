@@ -12,15 +12,10 @@ import base64, io
 
 # ===================== Uploaded Data Integration =========================
 
-import streamlit as st
-import pandas as pd
-
-st.title("4PL Dose-Response Model")
-
-# --- Check for uploaded parameter ranges ---
+# ===================== Auto-populate parameters from Upload Page =====================
 params_df = st.session_state.get("model_input", None)
 
-# Default values
+# Default values (existing page defaults)
 A_default, B_default, C_default, D_default = 0.0, 100.0, 50.0, 1.0
 
 if params_df is not None:
@@ -28,7 +23,7 @@ if params_df is not None:
     st.dataframe(params_df)
 
     numeric_cols = [c for c in params_df.columns if c != "sample"]
-    
+
     if 'Average' in params_df['sample'].values:
         row = params_df[params_df['sample'] == 'Average']
         A = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else A_default
@@ -46,17 +41,15 @@ if params_df is not None:
         D = (row_min[numeric_cols[3]].values[0] + row_max[numeric_cols[3]].values[0])/2 if len(numeric_cols) > 3 else D_default
 
     else:
-        st.warning("Uploaded data format not recognized. Using default values.")
+        # Uploaded data format not recognized → fallback to defaults
         A, B, C, D = A_default, B_default, C_default, D_default
 
 else:
-    st.info("No uploaded data. Please enter parameter ranges manually.")
-    A = st.number_input("A (Bottom)", value=A_default)
-    B = st.number_input("B (Top)", value=B_default)
-    C = st.number_input("C (EC50)", value=C_default)
-    D = st.number_input("D (HillSlope)", value=D_default)
+    # No uploaded data → just use page defaults
+    A, B, C, D = A_default, B_default, C_default, D_default
 
 st.write(f"Parameters in use: A={A}, B={B}, C={C}, D={D}")
+
 
 
 
