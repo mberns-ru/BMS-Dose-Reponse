@@ -5,7 +5,7 @@ import io
 
 # ===================== Page config =====================
 st.set_page_config(
-    page_title="Dose–Response Curve Simulator",
+    page_title="&nbsp;Dose–Response Curve Simulator",
     layout="wide",
 )
 
