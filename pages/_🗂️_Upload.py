@@ -91,18 +91,20 @@ if df is not None:
     - **Linear**: Linear trend in log10(concentration) space.
     """)
 
-# --- Optional Model Selection ---
-st.subheader("Select Model for Analysis")
-model_choice = st.selectbox(
-    "Choose the dose-response model to use", 
-    ["Linear", "4PL", "5PL", "2PL"]
-)
+# --- Optional Model Selection (only after upload) ---
+if df is not None:
+    st.subheader("Select Model for Analysis")
+    model_choice = st.selectbox(
+        "Choose the dose-response model to use", 
+        ["Linear", "4PL", "5PL", "2PL"]
+    )
 
-# Save selected model to session_state
-if "selected_model" not in st.session_state:
-    st.session_state["selected_model"] = None
-st.session_state["selected_model"] = model_choice
+    # Save selected model to session_state
+    if "selected_model" not in st.session_state:
+        st.session_state["selected_model"] = None
+    st.session_state["selected_model"] = model_choice
 
-# --- Navigation Message ---
-if model_choice:
-    st.info(f"Navigate to the {model_choice} page from the sidebar.")
+    # --- Navigation Message ---
+    if model_choice:
+        st.info(f"Navigate to the {model_choice} page from the sidebar.")
+
