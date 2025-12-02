@@ -20,30 +20,31 @@ st.title("4PL Dose-Response Model")
 # --- Check for uploaded parameter ranges ---
 params_df = st.session_state.get("model_input", None)
 
-# Default values in case no upload
+# Default values
 A_default, B_default, C_default, D_default = 0.0, 100.0, 50.0, 1.0
 
 if params_df is not None:
     st.info("Using parameter ranges from Upload Page")
     st.dataframe(params_df)
 
-    # If user chose Average
+    numeric_cols = [c for c in params_df.columns if c != "sample"]
+    
     if 'Average' in params_df['sample'].values:
         row = params_df[params_df['sample'] == 'Average']
-        A = row['A'].values[0]
-        B = row['B'].values[0]
-        C = row['C'].values[0]
-        D = row['D'].values[0]
+        A = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else A_default
+        B = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else B_default
+        C = row[numeric_cols[2]].values[0] if len(numeric_cols) > 2 else C_default
+        D = row[numeric_cols[3]].values[0] if len(numeric_cols) > 3 else D_default
 
-    # If user chose Min/Max
     elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
-        # For example, take the midpoint of Min/Max as default
         row_min = params_df[params_df['sample'] == 'Min']
         row_max = params_df[params_df['sample'] == 'Max']
-        A = (row_min['A'].values[0] + row_max['A'].values[0]) / 2
-        B = (row_min['B'].values[0] + row_max['B'].values[0]) / 2
-        C = (row_min['C'].values[0] + row_max['C'].values[0]) / 2
-        D = (row_min['D'].values[0] + row_max['D'].values[0]) / 2
+        # Midpoint of min/max for each numeric column
+        A = (row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0])/2 if len(numeric_cols) > 0 else A_default
+        B = (row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0])/2 if len(numeric_cols) > 1 else B_default
+        C = (row_min[numeric_cols[2]].values[0] + row_max[numeric_cols[2]].values[0])/2 if len(numeric_cols) > 2 else C_default
+        D = (row_min[numeric_cols[3]].values[0] + row_max[numeric_cols[3]].values[0])/2 if len(numeric_cols) > 3 else D_default
+
     else:
         st.warning("Uploaded data format not recognized. Using default values.")
         A, B, C, D = A_default, B_default, C_default, D_default
@@ -57,8 +58,6 @@ else:
 
 st.write(f"Parameters in use: A={A}, B={B}, C={C}, D={D}")
 
-# --- Now continue with your 4PL calculations ---
-# y = D + (A - D) / (1 + (x/C)**B)
 
 
 
