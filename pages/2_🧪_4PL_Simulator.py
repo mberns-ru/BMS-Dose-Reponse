@@ -12,34 +12,39 @@ import base64, io
 
 # ===================== Uploaded Data Integration =========================
 import streamlit as st
-import numpy as np
+import dose_response as dp  # your 4PL function/module
+import pandas as pd
 
-# Check if the user uploaded data from the Upload page
-uploaded_df = st.session_state.get('model_input', None)
-use_uploaded_data = uploaded_df is not None
+st.title("4PL Dose-Response Model")
 
-if use_uploaded_data:
+# Check if data is available from upload page
+if 'model_input' in st.session_state:
+    df_input = st.session_state['model_input']
+    st.write("Using data from Upload Page:")
+    st.dataframe(df_input)
+    
+    # Run your 4PL fit / simulate curve
+    # Example (depends on your dose_response library)
+    conc = df_input['log10(conc)'].values
+    response = df_input['response (current)'].values
+    
+    # Fit 4PL model
     try:
-        # Extract numeric data for 4PL
-        # Expecting columns: 'log10(conc)' and 'response (current)'
-        x_sparse_live = uploaded_df["log10(conc)"].astype(float).to_numpy()
-        y_sparse_live = uploaded_df["response (current)"].astype(float).to_numpy()
+        model = dp.fit_4pl(conc, response)  # replace with your actual function
+        curve_x = np.linspace(min(conc), max(conc), 100)
+        curve_y = dp.simulate_4pl(model, curve_x)
+        
+        # Plot
+        import plotly.graph_objects as go
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=conc, y=response, mode='markers', name='Data'))
+        fig.add_trace(go.Scatter(x=curve_x, y=curve_y, mode='lines', name='4PL Fit'))
+        st.plotly_chart(fig)
+    except Exception as e:
+        st.error(f"Error fitting 4PL model: {e}")
+else:
+    st.info("Please upload data on the Upload Page first.")
 
-        # Optional: compute min/max or average for initial parameters if needed
-        # Example: midpoint slope/intercept approximation (for reference)
-        if len(x_sparse_live) >= 2:
-            m_default = (y_sparse_live[-1] - y_sparse_live[0]) / (x_sparse_live[-1] - x_sparse_live[0])
-            b_default = y_sparse_live[0] - m_default * x_sparse_live[0]
-        else:
-            m_default = None
-            b_default = None
-
-        st.success("Uploaded data detected: will use these values for 4PL plotting.")
-    except KeyError:
-        st.warning(
-            "Uploaded data missing required columns: 'log10(conc)' or 'response (current)'."
-        )
-        use_uploaded_data = False
 
 # ===================== Sidebar Logo (works on all pages) =====================
 
