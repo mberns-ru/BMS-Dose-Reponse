@@ -37,7 +37,7 @@ except Exception:
 with st.expander("What this page does and how to use it"):
     st.markdown("""
     Upload your experimental data (Excel or CSV) containing replicate columns (A, B, C, D).  
-    You can calculate either **Average** or **Min/Max** across replicates.  
+    **Min/Max** across replicates will be calculated.  
     These processed parameter ranges will be automatically available in any dose-response model page (Linear, 4PL, 5PL, 2PL).
     """)
 
@@ -70,22 +70,13 @@ if df is not None:
     st.subheader("Preview of uploaded data:")
     st.dataframe(df)
 
-    # --- Min/Max vs Average ---
-    st.subheader("Select Summary Statistics")
-    summary_option = st.radio("Choose summary statistic", ("Average", "Min/Max"))
-
     numeric_cols = df.select_dtypes(include='number').columns
 
-    if summary_option == "Average":
-        df_summary = pd.DataFrame([df[numeric_cols].mean()], columns=numeric_cols)
-        df_summary.insert(0, 'sample', 'Average')
-        st.write("Summary Data (Average across replicates):")
-        st.dataframe(df_summary)
-    else:
-        df_summary = pd.DataFrame([df[numeric_cols].min(), df[numeric_cols].max()], columns=numeric_cols)
-        df_summary.insert(0, 'sample', ['Min', 'Max'])
-        st.write("Summary Data (Min/Max across replicates):")
-        st.dataframe(df_summary)
+    # --- Only Min/Max ---
+    df_summary = pd.DataFrame([df[numeric_cols].min(), df[numeric_cols].max()], columns=numeric_cols)
+    df_summary.insert(0, 'sample', ['Min', 'Max'])
+    st.write("Summary Data (Min/Max across replicates):")
+    st.dataframe(df_summary)
 
     # --- Save to session_state for model pages ---
     st.session_state['model_input'] = df_summary.copy()
@@ -100,7 +91,7 @@ if df is not None:
     - **Linear**: Linear trend in log10(concentration) space.
     """)
 
-    # --- Optional Model Selection ---
+# --- Optional Model Selection ---
 st.subheader("Select Model for Analysis")
 model_choice = st.selectbox(
     "Choose the dose-response model to use", 
@@ -111,4 +102,3 @@ model_choice = st.selectbox(
 st.session_state["selected_model"] = model_choice
 
 st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
-
