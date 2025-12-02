@@ -269,7 +269,7 @@ left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 with left_panel:
     st.subheader("Dilution series")
 
-    with st.expander("What is a dilution series?", expanded=False):
+    with st.expander("What does 'Dilution series' mean?", expanded=False):
         st.markdown(
             "The **dilution factor** is how much each step is diluted from the "
             "previous one, creating a series of decreasing doses. "
