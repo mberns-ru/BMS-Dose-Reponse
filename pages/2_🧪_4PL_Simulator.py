@@ -487,7 +487,6 @@ with left_panel:
 
 # Graph header and placeholder begin in Row 1 and continue in Row 2
 with graph_col:
-    st.subheader("Dose-Response Curves")
     plot_placeholder = st.empty()
 
 # ======= Row 2: Parameter ranges (min/max) | Graph continues (right) =======
@@ -691,6 +690,7 @@ for idx, cv in enumerate(st.session_state["curves"]):
         )
 
 fig.update_layout(
+    title = "Dose-Response Curve",
     xaxis_title="Log Concentration",
     yaxis_title="Response",
     legend_title=None,
