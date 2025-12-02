@@ -386,7 +386,7 @@ left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 
 with left_panel:
     st.subheader("Dilution series")
-    with st.expander("What is a dilution series?", expanded=False):
+    with st.expander("What does 'Dilution series' mean?", expanded=False):
         st.markdown(
             "The **dilution factor** is how much each step is diluted from the previous one, "
             "creating a series of decreasing doses for the curve. "
@@ -450,7 +450,6 @@ with left_panel:
 # --------------------- Right: Graph header & placeholder -------------------
 
 with graph_col:
-    st.subheader("Dose–Response Curves (2PL)")
     plot_placeholder = st.empty()
 
 # --------------------- Parameter ranges (2PL) ------------------------------
@@ -729,7 +728,7 @@ with graph_col:
 # ===================== Edge-case subplots (B,C extremes) ===================
 
 st.markdown("### Edge cases (2PL): all min/max combinations of B, C")
-with st.expander("What is Edge cases?", expanded=False):
+with st.expander("What are Edge cases?", expanded=False):
     st.markdown(
         "These plots show all the edge-case combinations of parameters **A, B, C, D, and/or E**. "
         "Each panel represents a minimum/maximum setting of those parameters so users can see how "
