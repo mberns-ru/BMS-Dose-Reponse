@@ -18,7 +18,7 @@ params_df = st.session_state.get("model_input", None)
 # Default values (existing page defaults)
 A_default, B_default, C_default, D_default = 0.0, 100.0, 50.0, 1.0
 
-if params_df is not None:
+if params_df is not None and selected_model == "4PL":
     st.info("Using parameter ranges from Upload Page")
     st.dataframe(params_df)
 
