@@ -12,29 +12,6 @@ import base64, io
 
 # ===================== Uploaded Data Integration =========================
 
-params_df = st.session_state.get("model_input", None)
-
-if params_df is not None:
-    st.info("Using parameter ranges from Upload Page")
-    st.dataframe(params_df)
-    
-    # Optionally, you can extract A, B, C, D for your calculations:
-    if 'Average' in params_df['sample'].values:
-        A = params_df.loc[params_df['sample']=='Average', 'A'].values[0]
-        B = params_df.loc[params_df['sample']=='Average', 'B'].values[0]
-        C = params_df.loc[params_df['sample']=='Average', 'C'].values[0]
-        D = params_df.loc[params_df['sample']=='Average', 'D'].values[0]
-    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
-        # You can extract Min/Max as needed
-        A_min = params_df.loc[params_df['sample']=='Min', 'A'].values[0]
-        A_max = params_df.loc[params_df['sample']=='Max', 'A'].values[0]
-        # similarly for B, C, D
-else:
-    st.info("No uploaded data. Please enter parameter ranges manually.")
-    A = st.number_input("A (Bottom)", value=0.0)
-    B = st.number_input("B (Top)", value=100.0)
-    C = st.number_input("C (EC50)", value=50.0)
-    D = st.number_input("D (HillSlope)", value=1.0)
 
 
 
