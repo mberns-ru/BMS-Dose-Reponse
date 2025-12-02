@@ -7,7 +7,6 @@ import os
 
 # --- Logo ---
 LOGO_PATH = "graphics/Logo.jpg"
-
 try:
     if os.path.exists(LOGO_PATH):
         logo = Image.open(LOGO_PATH)
@@ -39,7 +38,7 @@ with st.expander("What this page does and how to use it"):
     st.markdown("""
     Upload your experimental data (Excel or CSV) containing replicate columns (A, B, C, D).  
     You can calculate either **Average** or **Min/Max** across replicates.  
-    These processed values will be sent automatically to any dose-response model page (Linear, 4PL, 5PL, 2PL).
+    These processed parameter ranges will be automatically available in any dose-response model page (Linear, 4PL, 5PL, 2PL).
     """)
 
 st.title("Upload Data for Dose-Response Analysis")
@@ -47,7 +46,7 @@ st.title("Upload Data for Dose-Response Analysis")
 # --- Upload Section ---
 uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", "xls", "csv"])
 
-def _read_uploaded_file(uploaded_file):
+def read_uploaded_file(uploaded_file):
     if uploaded_file is None:
         return None
     try:
@@ -65,10 +64,10 @@ def _read_uploaded_file(uploaded_file):
         st.error(f"Error reading file: {e}")
         return None
 
-df = _read_uploaded_file(uploaded_file)
+df = read_uploaded_file(uploaded_file)
 
 if df is not None:
-    st.write("Preview of uploaded data:")
+    st.subheader("Preview of uploaded data:")
     st.dataframe(df)
 
     # --- Min/Max vs Average ---
@@ -88,23 +87,9 @@ if df is not None:
         st.write("Summary Data (Min/Max across replicates):")
         st.dataframe(df_summary)
 
-    # --- Convert to model-ready format ---
-    rows = []
-    if summary_option == "Average":
-        for idx, col in enumerate(numeric_cols):
-            rows.append({"log10(conc)": float(idx), "response (current)": float(df_summary[col][0])})
-    else:
-        for stat_idx in range(2):  # Min/Max rows
-            for idx, col in enumerate(numeric_cols):
-                rows.append({
-                    "log10(conc)": float(idx),
-                    "response (current)": float(df_summary[col][stat_idx])
-                })
-    df_model_ready = pd.DataFrame(rows)
-
-    # --- Save to session_state ---
-    st.session_state['model_input'] = df_model_ready.copy()
-    st.success("Data is now ready for use in any model page.")
+    # --- Save to session_state for model pages ---
+    st.session_state['model_input'] = df_summary.copy()
+    st.success("Parameter ranges are now ready for use in any model page.")
 
     # --- Model Guidance ---
     st.subheader("Which Dose-Response Model to Use?")
