@@ -101,6 +101,14 @@ if df is not None:
     """)
 
     # --- Optional Model Selection ---
-    st.subheader("Select Model for Analysis")
-    model_choice = st.selectbox("Choose the dose-response model to use", ["Linear", "4PL", "5PL", "2PL"])
-    st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
+st.subheader("Select Model for Analysis")
+model_choice = st.selectbox(
+    "Choose the dose-response model to use", 
+    ["Linear", "4PL", "5PL", "2PL"]
+)
+
+# Save selected model to session_state
+st.session_state["selected_model"] = model_choice
+
+st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
+
