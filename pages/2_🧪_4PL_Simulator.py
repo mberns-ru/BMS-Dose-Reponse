@@ -12,38 +12,40 @@ import base64, io
 
 # ===================== Uploaded Data Integration =========================
 import streamlit as st
-import dose_response as dp  # your 4PL function/module
-import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import dose_response as dp  # your existing 4PL functions
 
 st.title("4PL Dose-Response Model")
 
-# Check if data is available from upload page
-if 'model_input' in st.session_state:
+# --- Auto-load uploaded data ---
+if 'model_input' not in st.session_state:
+    st.info("Please upload data on the Upload Page first.")
+else:
     df_input = st.session_state['model_input']
-    st.write("Using data from Upload Page:")
+    st.write("Data from Upload Page:")
     st.dataframe(df_input)
-    
-    # Run your 4PL fit / simulate curve
-    # Example (depends on your dose_response library)
+
+    # Extract concentration & response
     conc = df_input['log10(conc)'].values
     response = df_input['response (current)'].values
-    
-    # Fit 4PL model
+
+    # --- Auto-fit 4PL model ---
     try:
-        model = dp.fit_4pl(conc, response)  # replace with your actual function
+        model_params = dp.fit_4pl(conc, response)  # your existing fit function
         curve_x = np.linspace(min(conc), max(conc), 100)
-        curve_y = dp.simulate_4pl(model, curve_x)
-        
-        # Plot
-        import plotly.graph_objects as go
+        curve_y = dp.simulate_4pl(model_params, curve_x)
+
+        # --- Plot
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=conc, y=response, mode='markers', name='Data'))
         fig.add_trace(go.Scatter(x=curve_x, y=curve_y, mode='lines', name='4PL Fit'))
         st.plotly_chart(fig)
+
+        st.success("4PL curve automatically generated from uploaded data.")
     except Exception as e:
-        st.error(f"Error fitting 4PL model: {e}")
-else:
-    st.info("Please upload data on the Upload Page first.")
+        st.error(f"Error generating 4PL curve: {e}")
+
 
 
 # ===================== Sidebar Logo (works on all pages) =====================
