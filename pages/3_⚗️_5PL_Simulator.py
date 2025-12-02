@@ -12,6 +12,45 @@ import streamlit as st
 
 import dose_response as dp
 
+# ===================== Auto-populate 5PL parameters from Upload Page =====================
+params_df = st.session_state.get("model_input", None)
+
+# Default values (existing page defaults)
+A_default, B_default, C_default, D_default, E_default = 0.0, 100.0, 50.0, 1.0, 1.0
+
+if params_df is not None:
+    st.info("Using parameter ranges from Upload Page")
+    st.dataframe(params_df)
+
+    numeric_cols = [c for c in params_df.columns if c != "sample"]
+
+    if 'Average' in params_df['sample'].values:
+        row = params_df[params_df['sample'] == 'Average']
+        A = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else A_default
+        B = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else B_default
+        C = row[numeric_cols[2]].values[0] if len(numeric_cols) > 2 else C_default
+        D = row[numeric_cols[3]].values[0] if len(numeric_cols) > 3 else D_default
+        E = row[numeric_cols[4]].values[0] if len(numeric_cols) > 4 else E_default
+
+    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
+        row_min = params_df[params_df['sample'] == 'Min']
+        row_max = params_df[params_df['sample'] == 'Max']
+        # Midpoint of min/max for each numeric column
+        A = ((row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2) if len(numeric_cols) > 0 else A_default
+        B = ((row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2) if len(numeric_cols) > 1 else B_default
+        C = ((row_min[numeric_cols[2]].values[0] + row_max[numeric_cols[2]].values[0]) / 2) if len(numeric_cols) > 2 else C_default
+        D = ((row_min[numeric_cols[3]].values[0] + row_max[numeric_cols[3]].values[0]) / 2) if len(numeric_cols) > 3 else D_default
+        E = ((row_min[numeric_cols[4]].values[0] + row_max[numeric_cols[4]].values[0]) / 2) if len(numeric_cols) > 4 else E_default
+
+    else:
+        # Uploaded data format not recognized → fallback to defaults
+        A, B, C, D, E = A_default, B_default, C_default, D_default, E_default
+
+else:
+    # No uploaded data → just use page defaults
+    A, B, C, D, E = A_default, B_default, C_default, D_default, E_default
+
+
 
 # ===================== Page config =====================
 
