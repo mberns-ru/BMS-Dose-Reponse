@@ -12,6 +12,39 @@ import streamlit as st
 
 import dose_response as dp
 
+# ===================== Auto-populate 2PL parameters from Upload Page =====================
+params_df = st.session_state.get("model_input", None)
+
+# Default values (existing page defaults)
+B_default, C_default = 100.0, 50.0
+
+if params_df is not None:
+    st.info("Using parameter ranges from Upload Page")
+    st.dataframe(params_df)
+
+    numeric_cols = [c for c in params_df.columns if c != "sample"]
+
+    if 'Average' in params_df['sample'].values:
+        row = params_df[params_df['sample'] == 'Average']
+        B = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else B_default
+        C = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else C_default
+
+    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
+        row_min = params_df[params_df['sample'] == 'Min']
+        row_max = params_df[params_df['sample'] == 'Max']
+        # Midpoint of min/max for each numeric column
+        B = ((row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2) if len(numeric_cols) > 0 else B_default
+        C = ((row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2) if len(numeric_cols) > 1 else C_default
+
+    else:
+        # Uploaded data format not recognized → fallback to defaults
+        B, C = B_default, C_default
+
+else:
+    # No uploaded data → just use page defaults
+    B, C = B_default, C_default
+
+
 
 # ---- Fix Plotly annotation xref/yref for subplot #1 vs #2.. ----
 def axis_domain_ref(ax: str, i: int) -> str:
