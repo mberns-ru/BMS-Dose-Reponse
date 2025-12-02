@@ -1,37 +1,39 @@
 import streamlit as st
 import pandas as pd
 from PIL import Image
+import io
+import base64
+import os
 
 # --- Logo ---
-
 LOGO_PATH = "graphics/Logo.jpg"
 
 try:
-    logo = Image.open(LOGO_PATH)
-    buffer = io.BytesIO()
-    logo.save(buffer, format="PNG")
-    img_b64 = base64.b64encode(buffer.getvalue()).decode()
+    if os.path.exists(LOGO_PATH):
+        logo = Image.open(LOGO_PATH)
+        buffer = io.BytesIO()
+        logo.save(buffer, format="PNG")
+        img_b64 = base64.b64encode(buffer.getvalue()).decode()
 
-    st.markdown(
-        f"""
-        <style>
-            [data-testid="stSidebarNav"]::before {{
-                content: "";
-                display: block;
-                height: 200px;
-                margin-bottom: 1rem;
-                background-image: url("data:image/png;base64,{img_b64}");
-                background-position: center;
-                background-repeat: no-repeat;
-                background-size: contain;
-            }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.markdown(
+            f"""
+            <style>
+                [data-testid="stSidebarNav"]::before {{
+                    content: "";
+                    display: block;
+                    height: 200px;
+                    margin-bottom: 1rem;
+                    background-image: url("data:image/png;base64,{img_b64}");
+                    background-position: center;
+                    background-repeat: no-repeat;
+                    background-size: contain;
+                }}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 except Exception:
-    pass
-
+    st.warning("Logo could not be loaded.")
 
 # --- Page Info Dropdown ---
 with st.expander("What this page does and how to use it"):
@@ -53,12 +55,17 @@ uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", 
 
 def _read_uploaded_file(uploaded_file):
     if uploaded_file is not None:
-        if uploaded_file.name.endswith(('.xlsx', '.xls')):
-            df = pd.read_excel(uploaded_file)
-        else:
-            df = pd.read_csv(uploaded_file)
-        numeric_cols = df.select_dtypes(include='number').columns
-        return df[['sample'] + numeric_cols.tolist()] if 'sample' in df.columns else df[numeric_cols]
+        try:
+            if uploaded_file.name.endswith(('.xlsx', '.xls')):
+                # Ensure openpyxl is installed
+                df = pd.read_excel(uploaded_file, engine="openpyxl")
+            else:
+                df = pd.read_csv(uploaded_file)
+            numeric_cols = df.select_dtypes(include='number').columns
+            return df[['sample'] + numeric_cols.tolist()] if 'sample' in df.columns else df[numeric_cols]
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
+            return None
     return None
 
 df = _read_uploaded_file(uploaded_file)
@@ -107,4 +114,3 @@ if df is not None:
     )
 
     st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
-
