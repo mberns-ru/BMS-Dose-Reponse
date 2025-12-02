@@ -14,6 +14,36 @@ import streamlit as st
 
 import dose_response as dp  # uses generate_log_conc for dilution grid
 
+# ===================== Auto-populate from Upload Page =====================
+# If the user uploaded data in the Upload Page and selected Linear model,
+# store it in session_state["model_input"] with columns: ['Well','log10(conc)','conc','response']
+
+uploaded_df = st.session_state.get("model_input", None)
+use_uploaded_data = uploaded_df is not None
+
+if use_uploaded_data:
+    st.info("Using data uploaded from Upload Page for Linear model")
+
+    # Replace the sparse/dense grids with uploaded data
+    x_sparse_live = uploaded_df["log10(conc)"].astype(float).to_numpy()
+    conc_sparse_live_lin = uploaded_df["conc"].astype(float).to_numpy()
+    y_sparse_live_lin = uploaded_df["response"].astype(float).to_numpy()
+
+    # Interpolate for dense points
+    from scipy.interpolate import interp1d
+    interp_fn = interp1d(x_sparse_live, y_sparse_live_lin, kind="linear", fill_value="extrapolate")
+    x_dense_live = np.linspace(x_sparse_live.min(), x_sparse_live.max(), 50)
+    y_dense_base = interp_fn(x_dense_live)
+
+    # Use mean m/b for plotting if you need (optional)
+    m = (y_sparse_live_lin[-1] - y_sparse_live_lin[0]) / (x_sparse_live[-1] - x_sparse_live[0])
+    b = y_sparse_live_lin[0] - m * x_sparse_live[0]
+
+else:
+    # Will continue to generate x_sparse_live/x_dense_live from user controls
+    pass
+
+
 # ===================== Check for uploaded data =========================
 uploaded_df = st.session_state.get('model_input', None)
 use_uploaded_data = uploaded_df is not None
