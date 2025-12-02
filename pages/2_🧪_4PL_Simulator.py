@@ -911,7 +911,7 @@ st.markdown("---")
 
 # ======= 16 Edge-case subplots =======
 st.markdown("### Edge cases: all min/max combinations of A, B, C, D")
-with st.expander("What is Edge cases?", expanded=False):
+with st.expander("What are Edge cases?", expanded=False):
     st.markdown(
         "These plots show all the edge-case combinations of parameters **A, B, C, D, and/or E**. "
         "Each panel represents a minimum/maximum setting of those parameters so users can see how "
