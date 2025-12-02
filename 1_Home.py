@@ -63,7 +63,7 @@ with header_logo_col:
     )
 
 with header_text_col:
-    st.title("Dose–Response Curve Simulator")
+    st.title(" Dose–Response Curve Simulator")
     st.markdown("""
     ### Welcome!
     Use the sidebar to navigate between pages.
