@@ -92,17 +92,19 @@ if df is not None:
     """)
 
 # --- Optional Model Selection ---
+import streamlit as st
+
+# Initialize session_state keys
+if "selected_model" not in st.session_state:
+    st.session_state["selected_model"] = None
+if "navigate_to" not in st.session_state:
+    st.session_state["navigate_to"] = None
+
 st.subheader("Select Model for Analysis")
 model_choice = st.selectbox(
     "Choose the dose-response model to use", 
     ["Linear", "4PL", "5PL", "2PL"]
 )
-
-# Initialize session state safely
-if "selected_model" not in st.session_state:
-    st.session_state["selected_model"] = None
-if "navigate_to" not in st.session_state:
-    st.session_state["navigate_to"] = None
 
 st.session_state["selected_model"] = model_choice
 
@@ -117,7 +119,12 @@ if model_choice:
     selected_page = page_mapping[model_choice]
     if st.button(f"Go to {model_choice} Page"):
         st.session_state["navigate_to"] = selected_page
-        st.experimental_rerun()  # safe because triggered by a button
+        try:
+            st.experimental_rerun()  # now triggered safely by button click
+        except AttributeError:
+            st.warning("Rerun failed — please manually navigate to the page.")
+
+
 
 
 
