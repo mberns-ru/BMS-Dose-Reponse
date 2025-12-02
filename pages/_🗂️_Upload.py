@@ -101,4 +101,14 @@ model_choice = st.selectbox(
 # Save selected model to session_state
 st.session_state["selected_model"] = model_choice
 
-st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
+# --- Automatic navigation ---
+if model_choice:
+    page_mapping = {
+        "Linear": "_📐_Linear_Simulator",
+        "4PL": "_🧪_4PL_Simulator",
+        "5PL": "_⚗️_5PL_Simulator",
+        "2PL": "_🔬_2PL_Simulator",
+    }
+    selected_page = page_mapping.get(model_choice)
+    if selected_page:
+        st.experimental_set_query_params(page=selected_page)
