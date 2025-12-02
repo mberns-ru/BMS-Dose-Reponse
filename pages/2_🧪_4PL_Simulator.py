@@ -12,6 +12,53 @@ import base64, io
 
 # ===================== Uploaded Data Integration =========================
 
+import streamlit as st
+import numpy as np
+import pandas as pd
+
+st.title("4PL Dose-Response Model")
+
+# ================= Optional Upload Page Integration =================
+uploaded_df = st.session_state.get("model_input", None)
+use_uploaded_data = uploaded_df is not None
+
+if use_uploaded_data:
+    st.info("Using data uploaded from Upload Page for 4PL model")
+    df = uploaded_df.copy()
+
+    # Auto-detect numeric columns: assume first column = X, second = Y
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    if len(numeric_cols) < 2:
+        st.error("Uploaded data does not have enough numeric columns for 4PL model")
+    else:
+        x_data = df[numeric_cols[0]].astype(float).to_numpy()
+        y_data = df[numeric_cols[1]].astype(float).to_numpy()
+
+        # Now x_data and y_data can be fed into your existing 4PL fitting function
+        st.write("Data ready for 4PL fitting:")
+        st.dataframe(pd.DataFrame({numeric_cols[0]: x_data, numeric_cols[1]: y_data}))
+
+else:
+    st.info("No data from Upload Page. Please upload your data or enter manually.")
+
+    # Existing 4PL upload / input logic here
+    uploaded_file = st.file_uploader("Upload Excel or CSV for 4PL model", type=["xlsx", "xls", "csv"])
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith(('.xlsx', '.xls')):
+                import openpyxl
+                df = pd.read_excel(uploaded_file, engine="openpyxl")
+            else:
+                df = pd.read_csv(uploaded_file)
+            st.write("Preview of uploaded data:")
+            st.dataframe(df)
+
+            numeric_cols = df.select_dtypes(include="number").columns.tolist()
+            if len(numeric_cols) >= 2:
+                x_data = df[numeric_cols[0]].astype(float).to_numpy()
+                y_data = df[numeric_cols[1]].astype(float).to_numpy()
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
 
 
 
