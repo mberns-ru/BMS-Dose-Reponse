@@ -48,7 +48,6 @@ else:
     # No uploaded data → just use page defaults
     A, B, C, D = A_default, B_default, C_default, D_default
 
-st.write(f"Parameters in use: A={A}, B={B}, C={C}, D={D}")
 
 
 
