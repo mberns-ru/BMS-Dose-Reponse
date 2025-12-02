@@ -14,35 +14,36 @@ import dose_response as dp
 
 # ===================== Auto-populate 2PL parameters from Upload Page =====================
 params_df = st.session_state.get("model_input", None)
+selected_model = st.session_state.get("selected_model", None)
 
-# Default values (existing page defaults)
-B_default, C_default = 100.0, 50.0
+# Default values for 2PL
+b_default, c_default = 0.0, 50.0
 
-if params_df is not None:
-    st.info("Using parameter ranges from Upload Page")
+if params_df is not None and selected_model == "2PL":
+    st.info("Using parameter ranges from Upload Page for 2PL model")
     st.dataframe(params_df)
 
     numeric_cols = [c for c in params_df.columns if c != "sample"]
 
     if 'Average' in params_df['sample'].values:
         row = params_df[params_df['sample'] == 'Average']
-        B = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else B_default
-        C = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else C_default
+        b = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else b_default
+        c = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else c_default
 
     elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
         row_min = params_df[params_df['sample'] == 'Min']
         row_max = params_df[params_df['sample'] == 'Max']
-        # Midpoint of min/max for each numeric column
-        B = ((row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2) if len(numeric_cols) > 0 else B_default
-        C = ((row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2) if len(numeric_cols) > 1 else C_default
+        # Midpoint of min/max for numeric columns
+        b = (row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2 if len(numeric_cols) > 0 else b_default
+        c = (row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2 if len(numeric_cols) > 1 else c_default
 
     else:
-        # Uploaded data format not recognized → fallback to defaults
-        B, C = B_default, C_default
+        st.warning("Uploaded data format not recognized. Using default 2PL values.")
+        b, c = b_default, c_default
 
 else:
-    # No uploaded data → just use page defaults
-    B, C = B_default, C_default
+    # No uploaded data or model not selected -> use defaults
+    b, c = b_default, c_default
 
 
 
