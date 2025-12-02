@@ -16,6 +16,53 @@ import dose_response as dp  # uses generate_log_conc for dilution grid
 
 
 # ===================== Auto-populate from Upload Page =====================
+# ===================== Auto-populate m/b from Upload Page =====================
+params_df = st.session_state.get("model_input", None)
+
+# Default values if no upload
+m_min_default, m_max_default = 0.2, 1.0
+b_min_default, b_max_default = 0.0, 0.2
+
+if params_df is not None:
+    st.info("Using parameter ranges from Upload Page")
+    st.dataframe(params_df)
+
+    numeric_cols = [c for c in params_df.columns if c != "sample"]
+
+    if 'Average' in params_df['sample'].values:
+        row = params_df[params_df['sample'] == 'Average']
+        m = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else (m_min_default + m_max_default)/2
+        b = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else (b_min_default + b_max_default)/2
+        # Set min/max to the same for consistency in edge plots
+        m_min, m_max = m, m
+        b_min, b_max = b, b
+
+    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
+        row_min = params_df[params_df['sample'] == 'Min']
+        row_max = params_df[params_df['sample'] == 'Max']
+        m_min = row_min[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_min_default
+        m_max = row_max[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_max_default
+        b_min = row_min[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else b_min_default
+        b_max = row_max[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else b_max_default
+        m = (m_min + m_max)/2
+        b = (b_min + b_max)/2
+
+    else:
+        st.warning("Uploaded data format not recognized. Using defaults.")
+        m_min, m_max = m_min_default, m_max_default
+        b_min, b_max = b_min_default, b_max_default
+        m, b = (m_min + m_max)/2, (b_min + b_max)/2
+
+else:
+    st.info("No uploaded data. Please enter parameter ranges manually.")
+    m_min = st.number_input("m min (slope)", value=m_min_default, step=0.01)
+    m_max = st.number_input("m max (slope)", value=m_max_default, step=0.01)
+    b_min = st.number_input("b min (intercept)", value=b_min_default, step=0.01)
+    b_max = st.number_input("b max (intercept)", value=b_max_default, step=0.01)
+    m = (m_min + m_max)/2
+    b = (b_min + b_max)/2
+
+st.write(f"Using parameters: m = {m:.4f}, b = {b:.4f}")
 
 
 # ===================== Sidebar Logo (same as other pages) ===================
