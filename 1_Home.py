@@ -66,7 +66,7 @@ with header_text_col:
     st.title(" Dose–Response Curve Simulator")  # title stays the same
     st.markdown("""
     <div style="margin-left: 20px;">
-    ### Welcome!
+       Welcome!
     Use the sidebar to navigate between pages.
 
     - **Home**: Overview of the simulator and usage notes  
