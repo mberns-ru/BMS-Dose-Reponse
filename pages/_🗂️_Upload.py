@@ -118,11 +118,11 @@ page_mapping = {
 if model_choice:
     selected_page = page_mapping[model_choice]
     if st.button(f"Go to {model_choice} Page"):
+        # Instead of rerunning, just display instructions
         st.session_state["navigate_to"] = selected_page
-        try:
-            st.experimental_rerun()  # now triggered safely by button click
-        except AttributeError:
-            st.warning("Rerun failed — please manually navigate to the page.")
+        st.success(f"Navigate to {selected_page} page from the sidebar.")
+
+
 
 
 
