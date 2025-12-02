@@ -11,40 +11,7 @@ import base64, io
 
 
 # ===================== Uploaded Data Integration =========================
-import streamlit as st
-import numpy as np
-import plotly.graph_objects as go
-import dose_response as dp  # your existing 4PL functions
 
-st.title("4PL Dose-Response Model")
-
-# --- Auto-load uploaded data ---
-if 'model_input' not in st.session_state:
-    st.info("Please upload data on the Upload Page first.")
-else:
-    df_input = st.session_state['model_input']
-    st.write("Data from Upload Page:")
-    st.dataframe(df_input)
-
-    # Extract concentration & response
-    conc = df_input['log10(conc)'].values
-    response = df_input['response (current)'].values
-
-    # --- Auto-fit 4PL model ---
-    try:
-        model_params = dp.fit_4pl(conc, response)  # your existing fit function
-        curve_x = np.linspace(min(conc), max(conc), 100)
-        curve_y = dp.simulate_4pl(model_params, curve_x)
-
-        # --- Plot
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=conc, y=response, mode='markers', name='Data'))
-        fig.add_trace(go.Scatter(x=curve_x, y=curve_y, mode='lines', name='4PL Fit'))
-        st.plotly_chart(fig)
-
-        st.success("4PL curve automatically generated from uploaded data.")
-    except Exception as e:
-        st.error(f"Error generating 4PL curve: {e}")
 
 
 
