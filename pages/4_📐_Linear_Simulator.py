@@ -701,35 +701,15 @@ with col_saved_lin:
 
 with col_preview_lin:
     st.subheader("Dilution preview (current settings)")
+    conc_sparse_live_lin = (10 ** x_sparse_live).astype(float)
+    y_sparse_live_lin = compute_curve_linear(m, b, x_sparse_live)
 
-    # ---------------- Use uploaded data if available ----------------
-    uploaded_df = st.session_state.get('model_input', None)
-    use_uploaded_data = uploaded_df is not None
-
-    if use_uploaded_data:
-        st.info("Using uploaded data from the Upload page.")
-        numeric_cols = uploaded_df.select_dtypes(include='number').columns
-        # Take first row as the "base line" (or Average/Min row)
-        y_sparse_live_lin = uploaded_df[numeric_cols].iloc[0].values.astype(float)
-        
-        # If the uploaded dataframe has a 'conc' column, use it; else create a default sequence
-        if 'conc' in uploaded_df.columns:
-            conc_sparse_live_lin = uploaded_df['conc'].values.astype(float)
-        else:
-            conc_sparse_live_lin = np.arange(1, len(y_sparse_live_lin) + 1)
-    else:
-        # Default Linear page behavior
-        conc_sparse_live_lin = (10 ** x_sparse_live).astype(float)
-        y_sparse_live_lin = compute_curve_linear(m, b, x_sparse_live)
-
-    # ---------------- Prepare DataFrame for display ----------------
     df_preview_lin = pd.DataFrame({
-        "Well": np.arange(1, len(conc_sparse_live_lin) + 1, dtype=int),
+        "Well": np.arange(1, len(x_sparse_live) + 1, dtype=int),
         "log10(conc)": x_sparse_live,
         "conc": conc_sparse_live_lin,
         "response (current)": y_sparse_live_lin,
     })
-
     dfp_lin = df_preview_lin.copy()
     dfp_lin["log10(conc)"] = dfp_lin["log10(conc)"].map(lambda v: f"{v:.6f}")
     dfp_lin["conc"] = dfp_lin["conc"].map(lambda v: f"{v:.6g}")
@@ -737,23 +717,6 @@ with col_preview_lin:
         lambda v: f"{v:.4f}"
     )
 
-    st.dataframe(dfp_lin, use_container_width=True, height=320)
-
-    st.download_button(
-        "Export Dilution Preview CSV",
-        data=df_preview_lin.to_csv(index=False).encode("utf-8"),
-        file_name="dilution_preview_linear.csv",
-        mime="text/csv",
-        key="btn_export_preview_csv_lin",
-    )
-
-    if custom_factors and len(custom_factors) == 7:
-        st.caption(
-            "Using custom 7 dilution factors; even factor "
-            f"(for dense grid) = {even_factor:.6g}"
-        )
-    else:
-        st.caption(f"Using even dilution factor: {even_factor:.6g}")
 
 
     st.dataframe(dfp_lin, use_container_width=True, height=320)
