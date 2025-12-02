@@ -92,6 +92,7 @@ if df is not None:
     """)
 
 # --- Optional Model Selection ---
+# --- Model Selection ---
 st.subheader("Select Model for Analysis")
 model_choice = st.selectbox(
     "Choose the dose-response model to use", 
@@ -101,14 +102,19 @@ model_choice = st.selectbox(
 # Save selected model to session_state
 st.session_state["selected_model"] = model_choice
 
-# --- Automatic navigation ---
+# --- Page mapping ---
+page_mapping = {
+    "Linear": "_📐_Linear_Simulator",
+    "4PL": "_🧪_4PL_Simulator",
+    "5PL": "_⚗️_5PL_Simulator",
+    "2PL": "5_🔬_2PL_Simulator",
+}
+
+# --- Show button to navigate ---
 if model_choice:
-    page_mapping = {
-        "Linear": "_📐_Linear_Simulator",
-        "4PL": "_🧪_4PL_Simulator",
-        "5PL": "_⚗️_5PL_Simulator",
-        "2PL": "_🔬_2PL_Simulator",
-    }
-    selected_page = page_mapping.get(model_choice)
-    if selected_page:
-        st.experimental_set_query_params(page=selected_page)
+    selected_page = page_mapping[model_choice]
+    if st.button(f"Go to {model_choice} Page"):
+        st.session_state["navigate_to"] = selected_page
+        st.experimental_rerun()  # reload app, multi-page setup handles navigation
+
+
