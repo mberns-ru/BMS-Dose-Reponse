@@ -16,49 +16,48 @@ import dose_response as dp  # uses generate_log_conc for dilution grid
 
 
 # ===================== Auto-populate from Upload Page =====================
-# ===================== Auto-populate m/b from Upload Page =====================
-# ===================== Auto-populate m/b from Upload Page =====================
-params_df = st.session_state.get("model_input", None)
+uploaded_df = st.session_state.get("model_input", None)
 
-# Default values if upload fails or format is wrong
-m_min_default, m_max_default = float(st.session_state.get("m_min_lin", 0.2)), float(st.session_state.get("m_max_lin", 1.0))
-b_min_default, b_max_default = float(st.session_state.get("b_min_lin", 0.0)), float(st.session_state.get("b_max_lin", 0.2))
+# Default values (existing page defaults)
+m_min_default, m_max_default = 0.2, 1.0
+b_min_default, b_max_default = 0.0, 0.2
 
-if params_df is not None:
+if uploaded_df is not None:
     st.info("Using parameter ranges from Upload Page")
-    st.dataframe(params_df)
+    st.dataframe(uploaded_df)
 
-    numeric_cols = [c for c in params_df.columns if c != "sample"]
+    numeric_cols = [c for c in uploaded_df.columns if c != "sample"]
 
-    if 'Average' in params_df['sample'].values:
-        row = params_df[params_df['sample'] == 'Average']
-        m = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else (m_min_default + m_max_default)/2
-        b = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else (b_min_default + b_max_default)/2
-        m_min, m_max = m, m
-        b_min, b_max = b, b
+    if 'Average' in uploaded_df['sample'].values:
+        row = uploaded_df[uploaded_df['sample'] == 'Average']
+        m_min = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_min_default
+        m_max = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else m_max_default
+        b_min = row[numeric_cols[2]].values[0] if len(numeric_cols) > 2 else b_min_default
+        b_max = row[numeric_cols[3]].values[0] if len(numeric_cols) > 3 else b_max_default
 
-    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
-        row_min = params_df[params_df['sample'] == 'Min']
-        row_max = params_df[params_df['sample'] == 'Max']
+    elif 'Min' in uploaded_df['sample'].values and 'Max' in uploaded_df['sample'].values:
+        row_min = uploaded_df[uploaded_df['sample'] == 'Min']
+        row_max = uploaded_df[uploaded_df['sample'] == 'Max']
         m_min = row_min[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_min_default
         m_max = row_max[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_max_default
         b_min = row_min[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else b_min_default
         b_max = row_max[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else b_max_default
-        m = (m_min + m_max)/2
-        b = (b_min + b_max)/2
 
     else:
-        st.warning("Uploaded data format not recognized. Using existing page defaults.")
+        # Uploaded data format not recognized → fallback to defaults
         m_min, m_max = m_min_default, m_max_default
         b_min, b_max = b_min_default, b_max_default
-        m, b = (m_min + m_max)/2, (b_min + b_max)/2
 
 else:
-    # No upload → keep existing page inputs untouched
-    m = (float(st.session_state["m_min_lin"]) + float(st.session_state["m_max_lin"])) / 2
-    b = (float(st.session_state["b_min_lin"]) + float(st.session_state["b_max_lin"])) / 2
+    # No uploaded data → just use page defaults
+    m_min, m_max = m_min_default, m_max_default
+    b_min, b_max = b_min_default, b_max_default
 
-st.write(f"Using parameters: m = {m:.4f}, b = {b:.4f}")
+# Central values for plotting
+m = (m_min + m_max) / 2.0
+b = (b_min + b_max) / 2.0
+
+
 
 
 # ===================== Sidebar Logo (same as other pages) ===================
