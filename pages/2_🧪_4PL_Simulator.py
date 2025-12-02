@@ -10,13 +10,6 @@ from PIL import Image
 import base64, io
 
 
-query_params = st.experimental_get_query_params()
-selected_page = query_params.get("page", [""])[0]
-
-if selected_page != "_🧪_4PL_Simulator":  # change for each page
-    st.stop()
-
-
 # ===================== Uploaded Data Integration =========================
 
 # ===================== Auto-populate parameters from Upload Page =====================
