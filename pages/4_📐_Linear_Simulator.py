@@ -334,7 +334,6 @@ with left_panel:
 
 
 with graph_col:
-    st.subheader("Dose–Response Curves (Linear)")
     plot_placeholder = st.empty()
 
 
