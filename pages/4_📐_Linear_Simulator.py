@@ -17,11 +17,12 @@ import dose_response as dp  # uses generate_log_conc for dilution grid
 
 # ===================== Auto-populate from Upload Page =====================
 # ===================== Auto-populate m/b from Upload Page =====================
+# ===================== Auto-populate m/b from Upload Page =====================
 params_df = st.session_state.get("model_input", None)
 
-# Default values if no upload
-m_min_default, m_max_default = 0.2, 1.0
-b_min_default, b_max_default = 0.0, 0.2
+# Default values if upload fails or format is wrong
+m_min_default, m_max_default = float(st.session_state.get("m_min_lin", 0.2)), float(st.session_state.get("m_max_lin", 1.0))
+b_min_default, b_max_default = float(st.session_state.get("b_min_lin", 0.0)), float(st.session_state.get("b_max_lin", 0.2))
 
 if params_df is not None:
     st.info("Using parameter ranges from Upload Page")
@@ -33,7 +34,6 @@ if params_df is not None:
         row = params_df[params_df['sample'] == 'Average']
         m = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else (m_min_default + m_max_default)/2
         b = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else (b_min_default + b_max_default)/2
-        # Set min/max to the same for consistency in edge plots
         m_min, m_max = m, m
         b_min, b_max = b, b
 
@@ -48,19 +48,15 @@ if params_df is not None:
         b = (b_min + b_max)/2
 
     else:
-        st.warning("Uploaded data format not recognized. Using defaults.")
+        st.warning("Uploaded data format not recognized. Using existing page defaults.")
         m_min, m_max = m_min_default, m_max_default
         b_min, b_max = b_min_default, b_max_default
         m, b = (m_min + m_max)/2, (b_min + b_max)/2
 
 else:
-    st.info("No uploaded data. Please enter parameter ranges manually.")
-    m_min = st.number_input("m min (slope)", value=m_min_default, step=0.01)
-    m_max = st.number_input("m max (slope)", value=m_max_default, step=0.01)
-    b_min = st.number_input("b min (intercept)", value=b_min_default, step=0.01)
-    b_max = st.number_input("b max (intercept)", value=b_max_default, step=0.01)
-    m = (m_min + m_max)/2
-    b = (b_min + b_max)/2
+    # No upload → keep existing page inputs untouched
+    m = (float(st.session_state["m_min_lin"]) + float(st.session_state["m_max_lin"])) / 2
+    b = (float(st.session_state["b_min_lin"]) + float(st.session_state["b_max_lin"])) / 2
 
 st.write(f"Using parameters: m = {m:.4f}, b = {b:.4f}")
 
