@@ -3,9 +3,35 @@ import pandas as pd
 from PIL import Image
 
 # --- Logo ---
-LOGO_PATH = "C:/Users/tanvi/OneDrive/Desktop/Python/Logo.jpg"
-logo = Image.open(LOGO_PATH)
-st.image(logo, width=200)
+
+LOGO_PATH = "graphics/Logo.jpg"
+
+try:
+    logo = Image.open(LOGO_PATH)
+    buffer = io.BytesIO()
+    logo.save(buffer, format="PNG")
+    img_b64 = base64.b64encode(buffer.getvalue()).decode()
+
+    st.markdown(
+        f"""
+        <style>
+            [data-testid="stSidebarNav"]::before {{
+                content: "";
+                display: block;
+                height: 200px;
+                margin-bottom: 1rem;
+                background-image: url("data:image/png;base64,{img_b64}");
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: contain;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+except Exception:
+    pass
+
 
 # --- Page Info Dropdown ---
 with st.expander("What this page does and how to use it"):
@@ -81,3 +107,4 @@ if df is not None:
     )
 
     st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
+
