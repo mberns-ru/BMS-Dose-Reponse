@@ -62,19 +62,11 @@ with header_logo_col:
         unsafe_allow_html=True
     )
 
-header_col1, header_col2 = st.columns([1, 3])  # adjust ratio for layout
-with header_col1:
-    st.image("logo.png", use_column_width=True)
-with header_col2:
-    st.title("Dose–Response Curve Simulator")
-    st.markdown("""
-    ### Welcome!
-    Use the sidebar to navigate between pages.
-
-    - **Home**: Overview of the simulator and usage notes  
+with header_text_col: st.title(" Dose–Response Curve Simulator")
+    st.markdown(""" ### Welcome! Use the sidebar to navigate between pages. 
+    - **Home**: Overview of the simulator and usage notes
     - **4PL Simulator**: Interactive tool to visualize and fit 4-parameter logistic (4PL) curves
-    - **2PL Simulator**: Interactive tool to visualize and fit 2-parameter logistic (2PL) curves
-    """)
+    - **2PL Simulator**: Interactive tool to visualize and fit 2-parameter logistic (2PL) curves """)
 
 
 st.markdown("---")
