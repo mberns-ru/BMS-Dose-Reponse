@@ -104,9 +104,9 @@ st.session_state["selected_model"] = model_choice
 
 # --- Page mapping ---
 page_mapping = {
-    "Linear": "_📐_Linear_Simulator",
-    "4PL": "_🧪_4PL_Simulator",
-    "5PL": "_⚗️_5PL_Simulator",
+    "Linear": "4_📐_Linear_Simulator",
+    "4PL": "2_🧪_4PL_Simulator",
+    "5PL": "3_⚗️_5PL_Simulator",
     "2PL": "5_🔬_2PL_Simulator",
 }
 
@@ -116,5 +116,6 @@ if model_choice:
     if st.button(f"Go to {model_choice} Page"):
         st.session_state["navigate_to"] = selected_page
         st.experimental_rerun()  # reload app, multi-page setup handles navigation
+
 
 
