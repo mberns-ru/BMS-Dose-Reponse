@@ -63,16 +63,17 @@ with header_logo_col:
     )
     
 with header_text_col:
-    st.markdown("<br><br>", unsafe_allow_html=True)  # adds space above the title
-    st.title(" Dose–Response Curve Simulator")
+    st.title(" Dose–Response Curve Simulator")  # title stays the same
     st.markdown("""
+    <div style="margin-left: 20px;">
     ### Welcome!
     Use the sidebar to navigate between pages.
 
     - **Home**: Overview of the simulator and usage notes  
     - **4PL Simulator**: Interactive tool to visualize and fit 4-parameter logistic (4PL) curves
     - **2PL Simulator**: Interactive tool to visualize and fit 2-parameter logistic (2PL) curves
-    """)
+    </div>
+    """, unsafe_allow_html=True)
 
 
 st.markdown("---")
