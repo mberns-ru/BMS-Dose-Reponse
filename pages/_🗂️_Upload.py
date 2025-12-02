@@ -92,39 +92,17 @@ if df is not None:
     """)
 
 # --- Optional Model Selection ---
-import streamlit as st
-
-# Initialize session_state keys
-if "selected_model" not in st.session_state:
-    st.session_state["selected_model"] = None
-if "navigate_to" not in st.session_state:
-    st.session_state["navigate_to"] = None
-
 st.subheader("Select Model for Analysis")
 model_choice = st.selectbox(
     "Choose the dose-response model to use", 
     ["Linear", "4PL", "5PL", "2PL"]
 )
 
+# Save selected model to session_state
+if "selected_model" not in st.session_state:
+    st.session_state["selected_model"] = None
 st.session_state["selected_model"] = model_choice
 
-page_mapping = {
-    "Linear": "4_📐_Linear_Simulator",
-    "4PL": "2_🧪_4PL_Simulator",
-    "5PL": "3_⚗️_5PL_Simulator",
-    "2PL": "5_🔬_2PL_Simulator",
-}
-
+# --- Navigation Message ---
 if model_choice:
-    selected_page = page_mapping[model_choice]
-    if st.button(f"Go to {model_choice} Page"):
-        # Instead of rerunning, just display instructions
-        st.session_state["navigate_to"] = selected_page
-        st.success(f"Navigate to {selected_page} page from the sidebar.")
-
-
-
-
-
-
-
+    st.info(f"Navigate to the {model_choice} page from the sidebar.")
