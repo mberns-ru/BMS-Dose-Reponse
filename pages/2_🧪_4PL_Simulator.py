@@ -14,12 +14,13 @@ import base64, io
 
 # ===================== Auto-populate parameters from Upload Page =====================
 params_df = st.session_state.get("model_input", None)
+selected_model = st.session_state.get("selected_model", None)
 
-# Default values (existing page defaults)
+# Default values for 4PL
 A_default, B_default, C_default, D_default = 0.0, 100.0, 50.0, 1.0
 
 if params_df is not None and selected_model == "4PL":
-    st.info("Using parameter ranges from Upload Page")
+    st.info("Using parameter ranges from Upload Page for 4PL")
     st.dataframe(params_df)
 
     numeric_cols = [c for c in params_df.columns if c != "sample"]
@@ -35,20 +36,18 @@ if params_df is not None and selected_model == "4PL":
         row_min = params_df[params_df['sample'] == 'Min']
         row_max = params_df[params_df['sample'] == 'Max']
         # Midpoint of min/max for each numeric column
-        A = (row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0])/2 if len(numeric_cols) > 0 else A_default
-        B = (row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0])/2 if len(numeric_cols) > 1 else B_default
-        C = (row_min[numeric_cols[2]].values[0] + row_max[numeric_cols[2]].values[0])/2 if len(numeric_cols) > 2 else C_default
-        D = (row_min[numeric_cols[3]].values[0] + row_max[numeric_cols[3]].values[0])/2 if len(numeric_cols) > 3 else D_default
+        A = (row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2 if len(numeric_cols) > 0 else A_default
+        B = (row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2 if len(numeric_cols) > 1 else B_default
+        C = (row_min[numeric_cols[2]].values[0] + row_max[numeric_cols[2]].values[0]) / 2 if len(numeric_cols) > 2 else C_default
+        D = (row_min[numeric_cols[3]].values[0] + row_max[numeric_cols[3]].values[0]) / 2 if len(numeric_cols) > 3 else D_default
 
     else:
-        # Uploaded data format not recognized → fallback to defaults
+        st.warning("Uploaded data format not recognized. Using default 4PL values.")
         A, B, C, D = A_default, B_default, C_default, D_default
 
 else:
-    # No uploaded data → just use page defaults
+    # No uploaded data or model not selected -> use defaults
     A, B, C, D = A_default, B_default, C_default, D_default
-
-
 
 
 
