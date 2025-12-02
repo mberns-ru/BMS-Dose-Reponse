@@ -93,21 +93,22 @@ if df is not None:
 
 # --- Optional Model Selection (only after upload) ---
 if df is not None:
+    st.subheader("Select Model for Analysis")
     model_choice = st.selectbox(
         "Choose the dose-response model to use", 
         ["Linear", "4PL", "5PL", "2PL"]
     )
 
-    page_mapping = {
-        "Linear": "4_📐_Linear_Simulator",
-        "4PL": "2_🧪_4PL_Simulator",
-        "5PL": "3_⚗️_5PL_Simulator",
-        "2PL": "5_🔬_2PL_Simulator",
-    }
+    # Save selected model to session_state
+    if "selected_model" not in st.session_state:
+        st.session_state["selected_model"] = None
+    st.session_state["selected_model"] = model_choice
 
-    if model_choice and st.button(f"Go to {model_choice} page"):
-        st.session_state["selected_model"] = model_choice
-        st.switch_page(page_mapping[model_choice])
+    # --- Navigation Message ---
+    if model_choice:
+        st.info(f"Navigate to the {model_choice} page from the sidebar.")
+
+
 
 
 
