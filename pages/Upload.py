@@ -53,20 +53,36 @@ st.title("Upload Data for Dose-Response Analysis")
 # --- Upload Section ---
 uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", "xls", "csv"])
 
+# --- Robust file reader ---
 def _read_uploaded_file(uploaded_file):
-    if uploaded_file is not None:
-        try:
-            if uploaded_file.name.endswith(('.xlsx', '.xls')):
-                # Ensure openpyxl is installed
+    if uploaded_file is None:
+        return None
+
+    try:
+        # Handle Excel files
+        if uploaded_file.name.endswith(('.xlsx', '.xls')):
+            try:
+                import openpyxl
                 df = pd.read_excel(uploaded_file, engine="openpyxl")
-            else:
-                df = pd.read_csv(uploaded_file)
-            numeric_cols = df.select_dtypes(include='number').columns
-            return df[['sample'] + numeric_cols.tolist()] if 'sample' in df.columns else df[numeric_cols]
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
-            return None
-    return None
+            except ImportError:
+                st.error(
+                    "Reading Excel files requires `openpyxl`. "
+                    "Please install it by adding it to your `requirements.txt` or locally with `pip install openpyxl`."
+                )
+                return None
+        else:  # Handle CSV files
+            df = pd.read_csv(uploaded_file)
+
+        # Keep numeric columns and 'sample' if it exists
+        numeric_cols = df.select_dtypes(include='number').columns
+        if 'sample' in df.columns:
+            return df[['sample'] + numeric_cols.tolist()]
+        else:
+            return df[numeric_cols]
+
+    except Exception as e:
+        st.error(f"Error reading file: {e}")
+        return None
 
 df = _read_uploaded_file(uploaded_file)
 
