@@ -16,47 +16,37 @@ import dose_response as dp  # uses generate_log_conc for dilution grid
 
 
 # ===================== Auto-populate from Upload Page =====================
-uploaded_df = st.session_state.get("model_input", None)
+params_df = st.session_state.get("model_input", None)
+selected_model = st.session_state.get("selected_model", None)
 
-# Default values (existing page defaults)
-m_min_default, m_max_default = 0.2, 1.0
-b_min_default, b_max_default = 0.0, 0.2
+# Default values for Linear
+m_default, b_default = 0.5, 0.0
 
-if uploaded_df is not None:
-    st.info("Using parameter ranges from Upload Page")
-    st.dataframe(uploaded_df)
+if params_df is not None and selected_model == "Linear":
+    st.info("Using parameter ranges from Upload Page for Linear model")
+    st.dataframe(params_df)
 
-    numeric_cols = [c for c in uploaded_df.columns if c != "sample"]
+    numeric_cols = [c for c in params_df.columns if c != "sample"]
 
-    if 'Average' in uploaded_df['sample'].values:
-        row = uploaded_df[uploaded_df['sample'] == 'Average']
-        m_min = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_min_default
-        m_max = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else m_max_default
-        b_min = row[numeric_cols[2]].values[0] if len(numeric_cols) > 2 else b_min_default
-        b_max = row[numeric_cols[3]].values[0] if len(numeric_cols) > 3 else b_max_default
+    if 'Average' in params_df['sample'].values:
+        row = params_df[params_df['sample'] == 'Average']
+        m = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_default
+        b = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else b_default
 
-    elif 'Min' in uploaded_df['sample'].values and 'Max' in uploaded_df['sample'].values:
-        row_min = uploaded_df[uploaded_df['sample'] == 'Min']
-        row_max = uploaded_df[uploaded_df['sample'] == 'Max']
-        m_min = row_min[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_min_default
-        m_max = row_max[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else m_max_default
-        b_min = row_min[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else b_min_default
-        b_max = row_max[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else b_max_default
+    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
+        row_min = params_df[params_df['sample'] == 'Min']
+        row_max = params_df[params_df['sample'] == 'Max']
+        # Midpoint of min/max for numeric columns
+        m = (row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2 if len(numeric_cols) > 0 else m_default
+        b = (row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2 if len(numeric_cols) > 1 else b_default
 
     else:
-        # Uploaded data format not recognized → fallback to defaults
-        m_min, m_max = m_min_default, m_max_default
-        b_min, b_max = b_min_default, b_max_default
+        st.warning("Uploaded data format not recognized. Using default Linear values.")
+        m, b = m_default, b_default
 
 else:
-    # No uploaded data → just use page defaults
-    m_min, m_max = m_min_default, m_max_default
-    b_min, b_max = b_min_default, b_max_default
-
-# Central values for plotting
-m = (m_min + m_max) / 2.0
-b = (b_min + b_max) / 2.0
-
+    # No uploaded data or model not selected -> use defaults
+    m, b = m_default, b_default
 
 
 
