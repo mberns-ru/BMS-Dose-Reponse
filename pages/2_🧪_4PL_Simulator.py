@@ -12,6 +12,53 @@ import base64, io
 
 # ===================== Uploaded Data Integration =========================
 
+import streamlit as st
+import pandas as pd
+
+st.title("4PL Dose-Response Model")
+
+# --- Check for uploaded parameter ranges ---
+params_df = st.session_state.get("model_input", None)
+
+# Default values in case no upload
+A_default, B_default, C_default, D_default = 0.0, 100.0, 50.0, 1.0
+
+if params_df is not None:
+    st.info("Using parameter ranges from Upload Page")
+    st.dataframe(params_df)
+
+    # If user chose Average
+    if 'Average' in params_df['sample'].values:
+        row = params_df[params_df['sample'] == 'Average']
+        A = row['A'].values[0]
+        B = row['B'].values[0]
+        C = row['C'].values[0]
+        D = row['D'].values[0]
+
+    # If user chose Min/Max
+    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
+        # For example, take the midpoint of Min/Max as default
+        row_min = params_df[params_df['sample'] == 'Min']
+        row_max = params_df[params_df['sample'] == 'Max']
+        A = (row_min['A'].values[0] + row_max['A'].values[0]) / 2
+        B = (row_min['B'].values[0] + row_max['B'].values[0]) / 2
+        C = (row_min['C'].values[0] + row_max['C'].values[0]) / 2
+        D = (row_min['D'].values[0] + row_max['D'].values[0]) / 2
+    else:
+        st.warning("Uploaded data format not recognized. Using default values.")
+        A, B, C, D = A_default, B_default, C_default, D_default
+
+else:
+    st.info("No uploaded data. Please enter parameter ranges manually.")
+    A = st.number_input("A (Bottom)", value=A_default)
+    B = st.number_input("B (Top)", value=B_default)
+    C = st.number_input("C (EC50)", value=C_default)
+    D = st.number_input("D (HillSlope)", value=D_default)
+
+st.write(f"Parameters in use: A={A}, B={B}, C={C}, D={D}")
+
+# --- Now continue with your 4PL calculations ---
+# y = D + (A - D) / (1 + (x/C)**B)
 
 
 
