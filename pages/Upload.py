@@ -14,7 +14,6 @@ try:
         buffer = io.BytesIO()
         logo.save(buffer, format="PNG")
         img_b64 = base64.b64encode(buffer.getvalue()).decode()
-
         st.markdown(
             f"""
             <style>
@@ -35,17 +34,12 @@ try:
 except Exception:
     st.warning("Logo could not be loaded.")
 
-# --- Page Info Dropdown ---
+# --- Page Info ---
 with st.expander("What this page does and how to use it"):
     st.markdown("""
-    This page allows you to upload your experimental data (Excel or CSV) for dose-response analysis.  
-
-    **How to use the summary statistics options:**
-
-    - **Average**: Computes the mean of all replicates for each sample.  
-    - **Min/Max**: Shows minimum and maximum values across replicates.
-
-    After selecting your preferred summary statistic, the processed data will be available for any dose-response model (Linear, 4PL, 5PL, 2PL).
+    Upload your experimental data (Excel or CSV) containing replicate columns (A, B, C, D).  
+    You can calculate either **Average** or **Min/Max** across replicates.  
+    These processed values will be sent automatically to any dose-response model page (Linear, 4PL, 5PL, 2PL).
     """)
 
 st.title("Upload Data for Dose-Response Analysis")
@@ -53,33 +47,20 @@ st.title("Upload Data for Dose-Response Analysis")
 # --- Upload Section ---
 uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", "xls", "csv"])
 
-# --- Robust file reader ---
 def _read_uploaded_file(uploaded_file):
     if uploaded_file is None:
         return None
-
     try:
-        # Handle Excel files
         if uploaded_file.name.endswith(('.xlsx', '.xls')):
-            try:
-                import openpyxl
-                df = pd.read_excel(uploaded_file, engine="openpyxl")
-            except ImportError:
-                st.error(
-                    "Reading Excel files requires `openpyxl`. "
-                    "Please install it by adding it to your `requirements.txt` or locally with `pip install openpyxl`."
-                )
-                return None
-        else:  # Handle CSV files
+            import openpyxl
+            df = pd.read_excel(uploaded_file, engine="openpyxl")
+        else:
             df = pd.read_csv(uploaded_file)
-
-        # Keep numeric columns and 'sample' if it exists
         numeric_cols = df.select_dtypes(include='number').columns
         if 'sample' in df.columns:
             return df[['sample'] + numeric_cols.tolist()]
         else:
             return df[numeric_cols]
-
     except Exception as e:
         st.error(f"Error reading file: {e}")
         return None
@@ -87,15 +68,12 @@ def _read_uploaded_file(uploaded_file):
 df = _read_uploaded_file(uploaded_file)
 
 if df is not None:
-    st.write("Preview of your uploaded data:")
+    st.write("Preview of uploaded data:")
     st.dataframe(df)
 
     # --- Min/Max vs Average ---
     st.subheader("Select Summary Statistics")
-    summary_option = st.radio(
-        "Choose summary statistic",
-        ("Average", "Min/Max")
-    )
+    summary_option = st.radio("Choose summary statistic", ("Average", "Min/Max"))
 
     numeric_cols = df.select_dtypes(include='number').columns
 
@@ -107,26 +85,37 @@ if df is not None:
     else:
         df_summary = pd.DataFrame([df[numeric_cols].min(), df[numeric_cols].max()], columns=numeric_cols)
         df_summary.insert(0, 'sample', ['Min', 'Max'])
-        st.write("Summary Data (Min and Max across replicates):")
+        st.write("Summary Data (Min/Max across replicates):")
         st.dataframe(df_summary)
 
-    # --- Save to session_state for model pages ---
-    st.session_state['model_input'] = df_summary.copy()
+    # --- Convert to model-ready format ---
+    rows = []
+    if summary_option == "Average":
+        for idx, col in enumerate(numeric_cols):
+            rows.append({"log10(conc)": float(idx), "response (current)": float(df_summary[col][0])})
+    else:
+        for stat_idx in range(2):  # Min/Max rows
+            for idx, col in enumerate(numeric_cols):
+                rows.append({
+                    "log10(conc)": float(idx),
+                    "response (current)": float(df_summary[col][stat_idx])
+                })
+    df_model_ready = pd.DataFrame(rows)
+
+    # --- Save to session_state ---
+    st.session_state['model_input'] = df_model_ready.copy()
+    st.success("Data is now ready for use in any model page.")
 
     # --- Model Guidance ---
     st.subheader("Which Dose-Response Model to Use?")
     st.info("""
-    - **4PL**: Most common, symmetric sigmoidal curves. Use if your data has a typical S-shape.
-    - **5PL**: Adds asymmetry, good for curves that are not symmetric.
-    - **2PL**: Simpler, only slope and EC50. Use for basic dose-response data.
-    - **Linear**: Use if your data shows a linear trend rather than sigmoidal.
+    - **4PL**: Symmetric sigmoidal curves.
+    - **5PL**: Adds asymmetry.
+    - **2PL**: Simpler, slope + EC50.
+    - **Linear**: Linear trend in log10(concentration) space.
     """)
 
-    # --- Model Selection (optional) ---
+    # --- Optional Model Selection ---
     st.subheader("Select Model for Analysis")
-    model_choice = st.selectbox(
-        "Choose the dose-response model to use",
-        ["Linear", "4PL", "5PL", "2PL"]
-    )
-
+    model_choice = st.selectbox("Choose the dose-response model to use", ["Linear", "4PL", "5PL", "2PL"])
     st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
