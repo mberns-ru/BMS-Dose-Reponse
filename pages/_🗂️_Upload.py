@@ -98,16 +98,17 @@ if df is not None:
         ["Linear", "4PL", "5PL", "2PL"]
     )
 
-    if model_choice:
-        # Map to actual page filenames
-        page_mapping = {
-            "Linear": "4_📐_Linear_Simulator",
-            "4PL": "2_🧪_4PL_Simulator",
-            "5PL": "3_⚗️_5PL_Simulator",
-            "2PL": "5_🔬_2PL_Simulator",
-        }
+    page_mapping = {
+        "Linear": "4_📐_Linear_Simulator",
+        "4PL": "2_🧪_4PL_Simulator",
+        "5PL": "3_⚗️_5PL_Simulator",
+        "2PL": "5_🔬_2PL_Simulator",
+    }
+
+    if model_choice and st.button(f"Go to {model_choice} page"):
         st.session_state["selected_model"] = model_choice
         st.switch_page(page_mapping[model_choice])
+
 
 
 
