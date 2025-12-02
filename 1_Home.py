@@ -61,7 +61,9 @@ with header_logo_col:
         """,
         unsafe_allow_html=True
     )
+    
 with header_text_col:
+    st.markdown("<br><br>", unsafe_allow_html=True)  # adds space above the title
     st.title(" Dose–Response Curve Simulator")
     st.markdown("""
     ### Welcome!
