@@ -691,7 +691,6 @@ for idx, cv in enumerate(st.session_state["curves"]):
         )
 
 fig.update_layout(
-    title="Dose-Response Curves",
     xaxis_title="Log Concentration",
     yaxis_title="Response",
     legend_title=None,
