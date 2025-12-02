@@ -14,37 +14,6 @@ import streamlit as st
 
 import dose_response as dp  # uses generate_log_conc for dilution grid
 
-# ===================== Uploaded Data Integration =========================
-import streamlit as st
-import numpy as np
-
-# Check if the user uploaded data from the Upload page
-uploaded_df = st.session_state.get('model_input', None)
-use_uploaded_data = uploaded_df is not None
-
-if use_uploaded_data:
-    try:
-        # Extract numeric data for 4PL
-        # Expecting columns: 'log10(conc)' and 'response (current)'
-        x_sparse_live = uploaded_df["log10(conc)"].astype(float).to_numpy()
-        y_sparse_live = uploaded_df["response (current)"].astype(float).to_numpy()
-
-        # Optional: compute min/max or average for initial parameters if needed
-        # Example: midpoint slope/intercept approximation (for reference)
-        if len(x_sparse_live) >= 2:
-            m_default = (y_sparse_live[-1] - y_sparse_live[0]) / (x_sparse_live[-1] - x_sparse_live[0])
-            b_default = y_sparse_live[0] - m_default * x_sparse_live[0]
-        else:
-            m_default = None
-            b_default = None
-
-        st.success("Uploaded data detected: will use these values for 4PL plotting.")
-    except KeyError:
-        st.warning(
-            "Uploaded data missing required columns: 'log10(conc)' or 'response (current)'."
-        )
-        use_uploaded_data = False
-
 
 # ===================== Auto-populate from Upload Page =====================
 # If the user uploaded data in the Upload Page and selected Linear model,
