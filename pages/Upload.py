@@ -7,27 +7,23 @@ LOGO_PATH = "C:/Users/tanvi/OneDrive/Desktop/Python/Logo.jpg"
 logo = Image.open(LOGO_PATH)
 st.image(logo, width=200)
 
-st.title("Upload Data for Dose-Response Analysis")
-
-# --- Info Section ---
-with st.expander("How to use this feature"):
+# --- Page Info Dropdown ---
+with st.expander("What this page does and how to use it"):
     st.markdown("""
     This page allows you to upload your experimental data (Excel or CSV) for dose-response analysis.  
 
     **How to use the summary statistics options:**
 
     - **Average**: Computes the mean of all replicates for each sample.  
-      Use this when your replicates are consistent and you want a single representative value per sample.
+    - **Min/Max**: Shows minimum and maximum values across replicates.
 
-    - **Min/Max**: Shows two rows – one with the minimum and one with the maximum value across replicates.  
-      Use this when your replicates vary significantly and you want to capture the full range of values.
-
-    After selecting your preferred summary statistic, the processed data will be displayed below for preview.  
-    You can then use these values in downstream analyses, such as fitting 4PL, 5PL, 2PL, or linear models.
+    After selecting your preferred summary statistic, the processed data will be available for any dose-response model (Linear, 4PL, 5PL, 2PL).
     """)
 
+st.title("Upload Data for Dose-Response Analysis")
+
 # --- Upload Section ---
-uploaded_file = st.file_uploader("Upload your Excel/CSV file", type=["xlsx", "xls", "csv"])
+uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", "xls", "csv"])
 
 def _read_uploaded_file(uploaded_file):
     if uploaded_file is not None:
@@ -42,30 +38,31 @@ def _read_uploaded_file(uploaded_file):
 df = _read_uploaded_file(uploaded_file)
 
 if df is not None:
-    st.write("Preview of your data:")
+    st.write("Preview of your uploaded data:")
     st.dataframe(df)
 
     # --- Min/Max vs Average ---
     st.subheader("Select Summary Statistics")
     summary_option = st.radio(
-        "Choose whether to use Average or Min/Max values for downstream analysis",
+        "Choose summary statistic",
         ("Average", "Min/Max")
     )
 
     numeric_cols = df.select_dtypes(include='number').columns
 
     if summary_option == "Average":
-        df_summary = pd.DataFrame([df[numeric_cols].mean()])
-        st.write("Summary (Average) Data:")
+        df_summary = pd.DataFrame([df[numeric_cols].mean()], columns=numeric_cols)
+        df_summary.insert(0, 'sample', 'Average')
+        st.write("Summary Data (Average across replicates):")
+        st.dataframe(df_summary)
+    else:
+        df_summary = pd.DataFrame([df[numeric_cols].min(), df[numeric_cols].max()], columns=numeric_cols)
+        df_summary.insert(0, 'sample', ['Min', 'Max'])
+        st.write("Summary Data (Min and Max across replicates):")
         st.dataframe(df_summary)
 
-    else:  # Min/Max
-        min_row = df[numeric_cols].min()
-        max_row = df[numeric_cols].max()
-        df_summary = pd.DataFrame([min_row, max_row])
-        df_summary.index = ['Min', 'Max']
-        st.write("Summary (Min/Max) Data:")
-        st.dataframe(df_summary)
+    # --- Save to session_state for model pages ---
+    st.session_state['model_input'] = df_summary.copy()
 
     # --- Model Guidance ---
     st.subheader("Which Dose-Response Model to Use?")
@@ -73,6 +70,14 @@ if df is not None:
     - **4PL**: Most common, symmetric sigmoidal curves. Use if your data has a typical S-shape.
     - **5PL**: Adds asymmetry, good for curves that are not symmetric.
     - **2PL**: Simpler, only slope and EC50. Use for basic dose-response data.
-    - **Linear**: Use if your data shows a linear trend rather than sigmoidal. For linear data, summarize across replicates using Average or Min/Max per dose.
+    - **Linear**: Use if your data shows a linear trend rather than sigmoidal.
     """)
 
+    # --- Model Selection (optional) ---
+    st.subheader("Select Model for Analysis")
+    model_choice = st.selectbox(
+        "Choose the dose-response model to use",
+        ["Linear", "4PL", "5PL", "2PL"]
+    )
+
+    st.info(f"Selected model: {model_choice}. Go to the corresponding page to continue with these input values.")
