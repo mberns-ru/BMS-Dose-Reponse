@@ -222,6 +222,14 @@ page_map = {
     - **Linear**: Linear trend in log10(concentration) space.
     """)
 
+st.markdown("""
+<style>
+    /* Hide the built-in "Select model for analysis" dropdown */
+    [data-testid="stAppSelectbox"] {
+        display: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 
 
