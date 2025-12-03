@@ -186,32 +186,32 @@ page_map = {
     "2PL":   "pages/5_🔬_2PL_Simulator.py",
 }
 
-if detected:
-    st.info(f"Detected model: **{detected}**")
-
-    target = page_map.get(detected)
-    st.session_state["selected_model"] = detected
-
-    # Primary action: click to navigate
-    if st.button(f"Process & open {detected} page", type="primary"):
-        if hasattr(st, "switch_page") and target:
-            try:
-                st.switch_page(target)
-            except Exception:
-                st.warning("Couldn’t navigate automatically. Use the link below.")
-        else:
-            st.warning("This Streamlit version doesn’t support st.switch_page. Use the link below.")
-
-    # Always show a reliable link as a backup
-    try:
-        if target:
-            st.page_link(target, label=f"Go to {detected}", icon="➡️")
-    except Exception:
-        # If page_link not available, at least tell the user the path
-        st.caption(f"Open from sidebar: {target or detected}")
-else:
-    st.info("Could not auto-detect a model. Please choose one below.")
-
+    if detected:
+        st.info(f"Detected model: **{detected}**")
+    
+        target = page_map.get(detected)
+        st.session_state["selected_model"] = detected
+    
+        # Primary action: click to navigate
+        if st.button(f"Process & open {detected} page", type="primary"):
+            if hasattr(st, "switch_page") and target:
+                try:
+                    st.switch_page(target)
+                except Exception:
+                    st.warning("Couldn’t navigate automatically. Use the link below.")
+            else:
+                st.warning("This Streamlit version doesn’t support st.switch_page. Use the link below.")
+    
+        # Always show a reliable link as a backup
+        try:
+            if target:
+                st.page_link(target, label=f"Go to {detected}", icon="➡️")
+        except Exception:
+            # If page_link not available, at least tell the user the path
+            st.caption(f"Open from sidebar: {target or detected}")
+    else:
+        st.info("Could not auto-detect a model. Please choose one below.")
+    
 
     # --- Model Guidance ---
     st.subheader("Which Dose-Response Model to Use?")
@@ -221,6 +221,7 @@ else:
     - **2PL**: Simpler, slope + EC50.
     - **Linear**: Linear trend in log10(concentration) space.
     """)
+
 
 
 
