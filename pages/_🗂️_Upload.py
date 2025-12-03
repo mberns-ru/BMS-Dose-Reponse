@@ -213,9 +213,6 @@ else:
     st.info("Could not auto-detect a model. Please choose one below.")
 
 
-
-
-
     # --- Model Guidance ---
     st.subheader("Which Dose-Response Model to Use?")
     st.info("""
@@ -224,6 +221,7 @@ else:
     - **2PL**: Simpler, slope + EC50.
     - **Linear**: Linear trend in log10(concentration) space.
     """)
+
 
 
 
