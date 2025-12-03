@@ -130,29 +130,29 @@ list at the bottom-left (for export/record keeping in a future version).
 # ===================== Session State / Defaults =====================
 
 DEFAULTS = {
-    "a_min": 0.8,
-    "a_max": 1.2,
-    "b_min": -2.0,
-    "b_max": -0.5,
-    "c_min": 0.1,
-    "c_max": 3.0,
-    "d_min": 0.0,
-    "d_max": 0.2,
-    "e_min": 0.8,
-    "e_max": 1.2,
-    "top_conc": 10**2,
-    "even_dil_factor": 10**0.5,
-    "dilution_str": "",
-    "curves": [],
-    "next_label_idx": 1,
-    "rps_str": "",
+    "a_min_5pl": 0.8,
+    "a_max_5pl": 1.2,
+    "b_min_5pl": -2.0,
+    "b_max_5pl": -0.5,
+    "c_min_5pl": 0.1,
+    "c_max_5pl": 3.0,
+    "d_min_5pl": 0.0,
+    "d_max_5pl": 0.2,
+    "e_min_5pl": 0.8,
+    "e_max_5pl": 1.2,
+    "top_conc_5pl": 10**2,
+    "even_dil_factor_5pl": 10**0.5,
+    "dilution_str_5pl": "",
+    "curves_5pl": [],
+    "next_label_idx_5pl": 1,
+    "rps_str_5pl": "",
 }
 for k, v in DEFAULTS.items():
     st.session_state.setdefault(k, v)
 
-st.session_state.setdefault("apply_rec_factor", False)
-st.session_state.setdefault("rec_factor_value", None)
-st.session_state.setdefault("rec_df", None)
+st.session_state.setdefault("apply_rec_factor_5pl", False)
+st.session_state.setdefault("rec_factor_value_5pl", None)
+st.session_state.setdefault("rec_df_5pl", None)
 
 
 def _rerun():
@@ -162,12 +162,12 @@ def _rerun():
 
 
 # Apply any pending recommended factor before building widgets
-if st.session_state.get("apply_rec_factor", False):
-    rec_val = st.session_state.get("rec_factor_value", None)
+if st.session_state.get("apply_rec_factor_5pl", False):
+    rec_val = st.session_state.get("rec_factor_value_5pl", None)
     if rec_val is not None:
-        st.session_state["even_dil_factor"] = float(rec_val)
-        st.session_state["dilution_str"] = ""
-    st.session_state["apply_rec_factor"] = False
+        st.session_state["even_dil_factor_5pl"] = float(rec_val)
+        st.session_state["dilution_str_5pl"] = ""
+    st.session_state["apply_rec_factor_5pl"] = False
 
 
 # ===================== Small helpers =====================
@@ -238,9 +238,9 @@ def _region_bounds_5pl(a, b, c, d, e, frac_low=0.1, frac_high=0.9):
 
 # ===================== Curve saving =====================
 
-def curves_to_dataframe(curves):
+def curves_5pl_to_dataframe(curves_5pl):
     rows = []
-    for cv in curves:
+    for cv in curves_5pl:
         grid = cv.get("grid", {})
         rows.append({
             "label": cv["label"],
@@ -250,7 +250,7 @@ def curves_to_dataframe(curves):
             "d": cv["d"],
             "e": cv["e"],
             "rp": cv.get("rp"),
-            "top_conc": grid.get("top_conc"),
+            "top_conc_5pl": grid.get("top_conc_5pl"),
             "even_factor": grid.get("even_factor"),
             "custom_factors": _list_to_str(grid.get("custom_factors", [])),
             "x_log10_points": _list_to_str(cv.get("x_log10_sparse", [])),
@@ -263,12 +263,12 @@ def curves_to_dataframe(curves):
 def _lock_curve(label, a, b, c, d, e, rp=None, grid=None):
     c_eff = c / rp if (rp is not None and rp != 0) else c
 
-    top_conc = float(grid.get("top_conc")) if grid else 10**2
+    top_conc_5pl = float(grid.get("top_conc_5pl")) if grid else 10**2
     even_factor = float(grid.get("even_factor")) if grid else 10**0.5
     custom_factors = list(grid.get("custom_factors", [])) if grid else []
 
     x_sparse_locked = dp.generate_log_conc(
-        top_conc=top_conc,
+        top_conc_5pl=top_conc_5pl,
         dil_factor=even_factor,
         n_points=8,
         dense=False,
@@ -287,7 +287,7 @@ def _lock_curve(label, a, b, c, d, e, rp=None, grid=None):
         "e": float(e),
         "rp": 1.0 if rp in (None, 0) else float(rp),
         "grid": {
-            "top_conc": float(top_conc),
+            "top_conc_5pl": float(top_conc_5pl),
             "even_factor": float(even_factor),
             "custom_factors": list(custom_factors),
         },
@@ -295,7 +295,7 @@ def _lock_curve(label, a, b, c, d, e, rp=None, grid=None):
         "conc_sparse": [float(v) for v in conc_sparse],
         "y_sparse": [float(v) for v in y_sparse_locked],
     }
-    st.session_state["curves"].append(entry)
+    st.session_state["curves_5pl"].append(entry)
 
 
 # ======= Recommender internals (5PL, same logic as 4PL) =======
@@ -417,7 +417,7 @@ def _evaluate_factor_5pl(
     """
     # 8 log-spaced x-points for this factor
     x_points = dp.generate_log_conc(
-        top_conc=top, dil_factor=factor, n_points=8, dense=False
+        top_conc_5pl=top, dil_factor=factor, n_points=8, dense=False
     )
 
     def eval_one(a_, b_, c_, d_):
@@ -492,30 +492,30 @@ def _evaluate_factor_5pl(
 
 @st.cache_data(show_spinner=False)
 def suggest_factor_from_ranges(
-    top_conc,
-    a_min, a_max,
-    b_min, b_max,
-    c_min, c_max,
-    d_min, d_max,
-    e_min, e_max,
+    top_conc_5pl,
+    a_min_5pl, a_max_5pl,
+    b_min_5pl, b_max_5pl,
+    c_min_5pl, c_max_5pl,
+    d_min_5pl, d_max_5pl,
+    e_min_5pl, e_max_5pl,
     rps_list,
     n_candidates=80,
 ):
     """
     5PL version of your 4PL `suggest_factor_from_ranges`.
 
-    - Uses the midpoint of E (between e_min and e_max) as the asymmetry parameter.
+    - Uses the midpoint of E (between e_min_5pl and e_max_5pl) as the asymmetry parameter.
     - Builds all 16 min/max combinations of (A,B,C,D)
     - Tests log-spaced factors in [1.2, 10]
     - Picks the best factor based on:
         meets_min, meets_preferred, *smallest* score (pattern error),
         then smaller factor.
-    - Also stores a full table in st.session_state["rec_df"] for the UI.
+    - Also stores a full table in st.session_state["rec_df_5pl"] for the UI.
     """
     # Use mid-point of E for all corners (keeps behaviour very close to 4PL)
-    e_mid = 0.5 * (e_min + e_max)
+    e_mid = 0.5 * (e_min_5pl + e_max_5pl)
 
-    choices = [(a_min, a_max), (b_min, b_max), (c_min, c_max), (d_min, d_max)]
+    choices = [(a_min_5pl, a_max_5pl), (b_min_5pl, b_max_5pl), (c_min_5pl, c_max_5pl), (d_min_5pl, d_max_5pl)]
     combos16 = list(itertools.product(*choices))
 
     factors = np.unique(
@@ -532,7 +532,7 @@ def suggest_factor_from_ranges(
     for f in factors:
         res = _evaluate_factor_5pl(
             factor=f,
-            top=top_conc,
+            top=top_conc_5pl,
             A=0.0, B=0.0, C=1.0, D=0.0,  # ignored when combos16 is used
             e_val=e_mid,
             rps_list=rps_list,
@@ -553,7 +553,7 @@ def suggest_factor_from_ranges(
 
     # Build UI table just like 4PL
     if results:
-        rec_df = pd.DataFrame([
+        rec_df_5pl = pd.DataFrame([
             {
                 "factor": r["factor"],
                 "worst_lower": r["worst_lower"],
@@ -565,13 +565,13 @@ def suggest_factor_from_ranges(
             }
             for r in results
         ])
-        rec_df = rec_df.sort_values(
+        rec_df_5pl = rec_df_5pl.sort_values(
             by=["meets_min", "meets_preferred", "score", "factor"],
             ascending=[False, False, True, True],
         )
-        st.session_state["rec_df"] = rec_df
+        st.session_state["rec_df_5pl"] = rec_df_5pl
     else:
-        st.session_state["rec_df"] = None
+        st.session_state["rec_df_5pl"] = None
 
     return best
 
@@ -600,7 +600,7 @@ with left_panel:
         max_value=1e12,
         step=1.0,
         format="%.6g",
-        key="top_conc",
+        key="top_conc_5pl",
         help="The top concentration is the highest dose you start with, "
              "setting the upper limit of the dose–response curve.",
     )
@@ -611,17 +611,17 @@ with left_panel:
         max_value=1e9,
         step=0.01,
         format="%.6g",
-        key="even_dil_factor",
+        key="even_dil_factor_5pl",
         help="Example: 2 halves each step; √10≈3.162 is common.",
     )
 
     st.text_input(
         "Custom 7 dilution factors (override even factor if exactly 7 numbers)",
-        key="dilution_str",
+        key="dilution_str_5pl",
         placeholder="e.g., 3.162 3.162 3.162 3.162 3.162 3.162 3.162",
         help="Provide 7 step-wise multipliers (high→low).",
     )
-    custom_factors = _parse_list(st.session_state["dilution_str"])
+    custom_factors = _parse_list(st.session_state["dilution_str_5pl"])
     if len(custom_factors) == 0:
         st.caption("Using even dilution factor.")
     elif len(custom_factors) == 7:
@@ -655,11 +655,11 @@ with left_panel:
         )
 
     defaults = {
-        "a_min": 0.8, "a_max": 1.2,
-        "b_min": -2.0, "b_max": -0.5,
-        "c_min": 0.1, "c_max": 3.0,
-        "d_min": 0.0, "d_max": 0.2,
-        "e_min": 0.8, "e_max": 1.2,
+        "a_min_5pl": 0.8, "a_max_5pl": 1.2,
+        "b_min_5pl": -2.0, "b_max_5pl": -0.5,
+        "c_min_5pl": 0.1, "c_max_5pl": 3.0,
+        "d_min_5pl": 0.0, "d_max_5pl": 0.2,
+        "e_min_5pl": 0.8, "e_max_5pl": 1.2,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -682,32 +682,32 @@ with left_panel:
         with cMax:
             st.number_input("", key=k_max, label_visibility="collapsed", **max_cfg)
 
-    row("A", "a_min", "a_max",
+    row("A", "a_min_5pl", "a_max_5pl",
         {"min_value": 0.0, "max_value": 2.0, "step": 0.01},
         {"min_value": 0.0, "max_value": 2.0, "step": 0.01})
 
-    row("B", "b_min", "b_max",
+    row("B", "b_min_5pl", "b_max_5pl",
         {"min_value": -10.0, "max_value": 10.0, "step": 0.01},
         {"min_value": -10.0, "max_value": 10.0, "step": 0.01})
 
-    row("C", "c_min", "c_max",
+    row("C", "c_min_5pl", "c_max_5pl",
         {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"},
         {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"})
 
-    row("D", "d_min", "d_max",
+    row("D", "d_min_5pl", "d_max_5pl",
         {"min_value": 0.0, "max_value": 1.0, "step": 0.01},
         {"min_value": 0.0, "max_value": 1.0, "step": 0.01})
 
-    row("E", "e_min", "e_max",
+    row("E", "e_min_5pl", "e_max_5pl",
         {"min_value": 0.1, "max_value": 5.0, "step": 0.01},
         {"min_value": 0.1, "max_value": 5.0, "step": 0.01})
 
     st.text_input(
         "Relative potencies (comma/space separated)",
-        key="rps_str",
+        key="rps_str_5pl",
         placeholder="e.g., 0.25, 0.5  1, 1.5, 2",
     )
-    user_rps = _parse_rps(st.session_state["rps_str"])
+    user_rps = _parse_rps(st.session_state["rps_str_5pl"])
     if not user_rps:
         rps = [0.4, 1.0, 1.6]
         st.caption("Using default RP values: 0.4 (40%), 1.0 (reference), 1.6 (160%).")
@@ -717,35 +717,35 @@ with left_panel:
 
 # -------------------- Compute main graph data ------------------------
 
-a_min = float(st.session_state["a_min"])
-a_max = float(st.session_state["a_max"])
-b_min = float(st.session_state["b_min"])
-b_max = float(st.session_state["b_max"])
-c_min = float(st.session_state["c_min"])
-c_max = float(st.session_state["c_max"])
-d_min = float(st.session_state["d_min"])
-d_max = float(st.session_state["d_max"])
-e_min = float(st.session_state["e_min"])
-e_max = float(st.session_state["e_max"])
+a_min_5pl = float(st.session_state["a_min_5pl"])
+a_max_5pl = float(st.session_state["a_max_5pl"])
+b_min_5pl = float(st.session_state["b_min_5pl"])
+b_max_5pl = float(st.session_state["b_max_5pl"])
+c_min_5pl = float(st.session_state["c_min_5pl"])
+c_max_5pl = float(st.session_state["c_max_5pl"])
+d_min_5pl = float(st.session_state["d_min_5pl"])
+d_max_5pl = float(st.session_state["d_max_5pl"])
+e_min_5pl = float(st.session_state["e_min_5pl"])
+e_max_5pl = float(st.session_state["e_max_5pl"])
 
-a = (a_min + a_max) / 2.0
-b = (b_min + b_max) / 2.0
-c = (c_min + c_max) / 2.0
-d = (d_min + d_max) / 2.0
-e = (e_min + e_max) / 2.0
+a = (a_min_5pl + a_max_5pl) / 2.0
+b = (b_min_5pl + b_max_5pl) / 2.0
+c = (c_min_5pl + c_max_5pl) / 2.0
+d = (d_min_5pl + d_max_5pl) / 2.0
+e = (e_min_5pl + e_max_5pl) / 2.0
 
-top_conc = float(st.session_state["top_conc"])
-even_factor = float(st.session_state["even_dil_factor"])
+top_conc_5pl = float(st.session_state["top_conc_5pl"])
+even_factor = float(st.session_state["even_dil_factor_5pl"])
 
 x_sparse_live = dp.generate_log_conc(
-    top_conc=top_conc,
+    top_conc=top_conc_5pl,
     dil_factor=even_factor,
     n_points=8,
     dense=False,
     dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
 )
 x_dense_live = dp.generate_log_conc(
-    top_conc=top_conc,
+    top_conc=top_conc_5pl,
     dil_factor=even_factor,
     n_points=8,
     dense=True,
@@ -812,15 +812,15 @@ for rp_val in rp_sorted:
     )
 
 locked_start_index = 6
-for idx, cv in enumerate(st.session_state["curves"]):
+for idx, cv in enumerate(st.session_state["curves_5pl"]):
     grid = cv.get("grid", {}) or {}
-    tc = grid.get("top_conc", top_conc)
+    tc = grid.get("top_conc_5pl", top_conc_5pl)
     ef = grid.get("even_factor", even_factor)
     cf = grid.get("custom_factors", [])
     lock_color = palette[(locked_start_index + idx) % len(palette)]
 
     x_dense_locked = dp.generate_log_conc(
-        top_conc=float(tc),
+        top_conc_5pl=float(tc),
         dil_factor=float(ef),
         n_points=8,
         dense=True,
@@ -851,7 +851,7 @@ for idx, cv in enumerate(st.session_state["curves"]):
         )
 
 fig.update_layout(
-    title="Dose-Response Curves",
+    title="Dose-Response curves_5pl",
     xaxis_title="Log Concentration",
     yaxis_title="Response",
     legend_title=None,
@@ -866,11 +866,11 @@ with graph_col:
     )
 
     st.markdown("### Add curve")
-    default_label = f"Curve {st.session_state['next_label_idx']}"
+    default_label = f"Curve {st.session_state['next_label_idx_5pl']}"
     label = st.text_input(
         "Label for base curve",
         value=default_label,
-        help="Base curve name; RP curves add ' (RP=...)'.",
+        help="Base curve name; RP curves_5pl add ' (RP=...)'.",
         key="label_input_5pl",
     )
 
@@ -878,7 +878,7 @@ with graph_col:
     with col_btn1:
         if st.button("Add curve", type="primary", key="btn_save_curve_5pl"):
             grid_info = {
-                "top_conc": top_conc,
+                "top_conc_5pl": top_conc_5pl,
                 "even_factor": even_factor,
                 "custom_factors": list(custom_factors)
                 if len(custom_factors) == 7
@@ -892,15 +892,15 @@ with graph_col:
                 rp_label = f"{label} (RP={rp_val:g})"
                 _lock_curve(rp_label, a, b, c, d, e, rp=rp_val, grid=grid_info)
 
-            st.session_state["next_label_idx"] += 1
+            st.session_state["next_label_idx_5pl"] += 1
             st.success("Saved current curve(s).")
             _rerun()
 
     with col_btn2:
-        if st.button("Clear all saved curves", key="btn_clear_curves_5pl"):
-            st.session_state["curves"] = []
-            st.session_state["next_label_idx"] = 1
-            st.info("Cleared all saved curves.")
+        if st.button("Clear all saved curves_5pl", key="btn_clear_curves_5pl_5pl"):
+            st.session_state["curves_5pl"] = []
+            st.session_state["next_label_idx_5pl"] = 1
+            st.info("Cleared all saved curves_5pl.")
             _rerun()
 
     st.markdown("---")
@@ -961,17 +961,17 @@ The table below shows, for each candidate factor:
         key="btn_run_rec_5pl",
     ):
         suggest_factor_from_ranges(
-            top_conc=top_conc,
-            a_min=a_min,
-            a_max=a_max,
-            b_min=b_min,
-            b_max=b_max,
-            c_min=c_min,
-            c_max=c_max,
-            d_min=d_min,
-            d_max=d_max,
-            e_min=e_min,
-            e_max=e_max,
+            top_conc_5pl=top_conc_5pl,
+            a_min_5pl=a_min_5pl,
+            a_max_5pl=a_max_5pl,
+            b_min_5pl=b_min_5pl,
+            b_max_5pl=b_max_5pl,
+            c_min_5pl=c_min_5pl,
+            c_max_5pl=c_max_5pl,
+            d_min_5pl=d_min_5pl,
+            d_max_5pl=d_max_5pl,
+            e_min_5pl=e_min_5pl,
+            e_max_5pl=e_max_5pl,
             rps_list=rp_sorted,
             n_candidates=n_candidates,
         )
@@ -979,25 +979,25 @@ The table below shows, for each candidate factor:
 
 # ===================== Full-width recommendations table =====================
 
-rec_df = st.session_state.get("rec_df", None)
+rec_df_5pl = st.session_state.get("rec_df_5pl", None)
 st.markdown("---")
 st.markdown("### Recommended even dilution factors")
 
-if rec_df is not None and not rec_df.empty:
-    rec_df_disp = rec_df.copy()
-    rec_df_disp["factor"] = rec_df_disp["factor"].map(lambda v: f"{v:.6g}")
-    rec_df_disp["score"] = rec_df_disp["score"].map(lambda v: f"{v:.3g}")
-    st.dataframe(rec_df_disp.head(20), use_container_width=True, height=320)
+if rec_df_5pl is not None and not rec_df_5pl.empty:
+    rec_df_5pl_disp = rec_df_5pl.copy()
+    rec_df_5pl_disp["factor"] = rec_df_5pl_disp["factor"].map(lambda v: f"{v:.6g}")
+    rec_df_5pl_disp["score"] = rec_df_5pl_disp["score"].map(lambda v: f"{v:.3g}")
+    st.dataframe(rec_df_5pl_disp.head(20), use_container_width=True, height=320)
 
     st.download_button(
         "Download all recommendations (CSV)",
-        data=rec_df.to_csv(index=False).encode("utf-8"),
+        data=rec_df_5pl.to_csv(index=False).encode("utf-8"),
         file_name="dilution_factor_recommendations_5pl.csv",
         mime="text/csv",
         key="btn_dl_rec_csv_5pl",
     )
 
-    top_20 = rec_df.head(20)["factor"].tolist()
+    top_20 = rec_df_5pl.head(20)["factor"].tolist()
     st.markdown("#### Load a recommended factor into the current dilution settings")
 
     selected_factor = st.selectbox(
@@ -1008,8 +1008,8 @@ if rec_df is not None and not rec_df.empty:
     )
 
     if st.button("Use selected factor", key="btn_use_rec_factor_5pl"):
-        st.session_state["rec_factor_value"] = float(selected_factor)
-        st.session_state["apply_rec_factor"] = True
+        st.session_state["rec_factor_value_5pl"] = float(selected_factor)
+        st.session_state["apply_rec_factor_5pl"] = True
         st.success(
             f"Will set even dilution factor to {selected_factor:.6g} "
             "and clear custom factors."
@@ -1034,37 +1034,37 @@ with st.expander("What are Edge cases?", expanded=False):
     )
 
 x_sparse_edge = dp.generate_log_conc(
-    top_conc=top_conc,
+    top_conc_5pl=top_conc_5pl,
     dil_factor=even_factor,
     n_points=8,
     dense=False,
     dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
 )
 x_dense_edge = dp.generate_log_conc(
-    top_conc=top_conc,
+    top_conc_5pl=top_conc_5pl,
     dil_factor=even_factor,
     n_points=8,
     dense=True,
     dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
 )
 
-a_min_ec = float(st.session_state["a_min"])
-a_max_ec = float(st.session_state["a_max"])
-b_min_ec = float(st.session_state["b_min"])
-b_max_ec = float(st.session_state["b_max"])
-c_min_ec = float(st.session_state["c_min"])
-c_max_ec = float(st.session_state["c_max"])
-d_min_ec = float(st.session_state["d_min"])
-d_max_ec = float(st.session_state["d_max"])
-e_min_ec = float(st.session_state["e_min"])
-e_max_ec = float(st.session_state["e_max"])
+a_min_5pl_ec = float(st.session_state["a_min_5pl"])
+a_max_5pl_ec = float(st.session_state["a_max_5pl"])
+b_min_5pl_ec = float(st.session_state["b_min_5pl"])
+b_max_5pl_ec = float(st.session_state["b_max_5pl"])
+c_min_5pl_ec = float(st.session_state["c_min_5pl"])
+c_max_5pl_ec = float(st.session_state["c_max_5pl"])
+d_min_5pl_ec = float(st.session_state["d_min_5pl"])
+d_max_5pl_ec = float(st.session_state["d_max_5pl"])
+e_min_5pl_ec = float(st.session_state["e_min_5pl"])
+e_max_5pl_ec = float(st.session_state["e_max_5pl"])
 
 choices_edge = [
-    (a_min_ec, a_max_ec),
-    (b_min_ec, b_max_ec),
-    (c_min_ec, c_max_ec),
-    (d_min_ec, d_max_ec),
-    (e_min_ec, e_max_ec),
+    (a_min_5pl_ec, a_max_5pl_ec),
+    (b_min_5pl_ec, b_max_5pl_ec),
+    (c_min_5pl_ec, c_max_5pl_ec),
+    (d_min_5pl_ec, d_max_5pl_ec),
+    (e_min_5pl_ec, e_max_5pl_ec),
 ]
 combos_edge = list(itertools.product(*choices_edge))
 
@@ -1226,23 +1226,23 @@ st.plotly_chart(edge_fig, use_container_width=True)
 # ======= RULE =======
 st.markdown("---")
 
-# ======= Row: Saved curves (left) | Dilution preview (right) =======
+# ======= Row: Saved curves_5pl (left) | Dilution preview (right) =======
 col_saved, col_preview = st.columns([1.15, 1.85], gap="large")
 
 with col_saved:
-    st.subheader("Saved curves")
-    df_saved = curves_to_dataframe(st.session_state["curves"])
+    st.subheader("Saved curves_5pl")
+    df_saved = curves_5pl_to_dataframe(st.session_state["curves_5pl"])
     if not df_saved.empty:
         st.dataframe(df_saved, use_container_width=True, height=320)
         st.download_button(
-            "Export Saved Curves CSV",
+            "Export Saved curves_5pl CSV",
             data=df_saved.to_csv(index=False).encode("utf-8"),
-            file_name="dose_response_curves_5pl.csv",
+            file_name="dose_response_curves_5pl_5pl.csv",
             mime="text/csv",
             key="btn_export_saved_csv_5pl",
         )
     else:
-        st.info("No saved curves yet.")
+        st.info("No saved curves_5pl yet.")
 
 with col_preview:
     st.subheader("Dilution preview (current settings)")
