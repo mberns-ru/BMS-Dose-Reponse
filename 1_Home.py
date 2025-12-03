@@ -15,14 +15,6 @@ st.set_page_config(
 
 LOGO_PATH = "graphics/Logo.jpg"
 
-# Tutorial step images (for Usage notes hover)
-TUT_IMAGES = {}
-for i in range(7):  # tut_0 ... tut_6
-    fname = f"graphics/tut_{i}.png"
-    if os.path.exists(fname):
-        with open(fname, "rb") as f:
-            TUT_IMAGES[f"tut_{i}"] = base64.b64encode(f.read()).decode("utf-8")
-
 img_b64 = None
 if os.path.exists(LOGO_PATH):
     try:
