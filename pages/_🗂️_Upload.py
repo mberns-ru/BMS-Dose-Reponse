@@ -225,13 +225,14 @@ page_map = {
     
 
     # --- Model Guidance ---
-    st.subheader("Which Dose-Response Model to Use?")
-    st.info("""
-    - **4PL**: Symmetric sigmoidal curves.
-    - **5PL**: Adds asymmetry.
-    - **2PL**: Simpler, slope + EC50.
-    - **Linear**: Linear trend in log10(concentration) space.
-    """)
+st.subheader("Which Dose-Response Model to Use?")
+st.info("""
+- **4PL**: Symmetric sigmoidal curves.
+- **5PL**: Adds asymmetry.
+- **2PL**: Simpler, slope + EC50.
+- **Linear**: Linear trend in log10(concentration) space.
+""")
+
 
 
 
