@@ -113,7 +113,7 @@ st.markdown(
 )
 
 # ======= Title =======
-st.title("4PL Quantification Tool")
+st.title("4-Parameter Logistic (4PL) Simulator")
 
 with st.expander("How to use this tool", expanded=False):
     st.markdown(

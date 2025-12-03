@@ -3,6 +3,7 @@ from PIL import Image
 import base64
 import io
 import os
+import base64
 
 # ===================== Page config =====================
 st.set_page_config(
@@ -13,6 +14,14 @@ st.set_page_config(
 # ===================== Sidebar logo (consistent with other pages) =====================
 
 LOGO_PATH = "graphics/Logo.jpg"
+
+# Tutorial step images (for Usage notes hover)
+TUT_IMAGES = {}
+for i in range(7):  # tut_0 ... tut_6
+    fname = f"graphics/tut_{i}.png"
+    if os.path.exists(fname):
+        with open(fname, "rb") as f:
+            TUT_IMAGES[f"tut_{i}"] = base64.b64encode(f.read()).decode("utf-8")
 
 img_b64 = None
 if os.path.exists(LOGO_PATH):
@@ -267,6 +276,187 @@ with right_col:
 
 st.markdown("---")
 
+# ===================== Usage notes (full width, at bottom) =====================
+
+st.markdown("### 📋 Usage notes")
+
+if TUT_IMAGES:
+    # build JS image map from the loaded base64 strings
+    img_map_entries = ",\n        ".join(
+        f'"{key}": "data:image/png;base64,{b64}"'
+        for key, b64 in TUT_IMAGES.items()
+    )
+
+    default_src = TUT_IMAGES.get("tut_0", "")
+
+    usage_html = f"""
+    <style>
+    .usage-wrapper {{
+        display: flex;
+        gap: 2.5rem;
+        align-items: flex-start;
+        margin-top: 0.75rem;
+    }}
+    .usage-text {{
+        flex: 1.6;
+    }}
+    .usage-steps {{
+        padding-left: 1.2rem;
+        margin: 0;
+    }}
+    .usage-steps li {{
+        margin-bottom: 0.9rem;
+        line-height: 1.45;
+        cursor: pointer;
+    }}
+    .usage-steps li:hover {{
+        color: var(--primary-color);
+    }}
+    .usage-figure {{
+        flex: 1.1;
+        display: flex;
+        justify-content: center;
+    }}
+    .usage-figure img {{
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.9rem;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    }}
+    @media (max-width: 900px) {{
+        .usage-wrapper {{
+            flex-direction: column;
+        }}
+        .usage-figure {{
+            margin-top: 1rem;
+        }}
+    }}
+    </style>
+
+    <div class="usage-wrapper">
+      <div class="usage-text">
+        <ol class="usage-steps">
+
+          <li data-img="tut_1">
+            <strong>Set the dilution series</strong><br>
+            Begin by entering the <strong>top concentration</strong> and the <strong>dilution factor</strong>.<br>
+            These values define the concentration levels used to generate the dose–response curves.<br>
+            You can optionally override with <strong>7 custom dilution factors</strong>.
+          </li>
+
+          <li data-img="tut_2">
+            <strong>Specify parameter ranges</strong><br>
+            Each model includes parameters that control curve shape and behavior
+            (e.g., asymptotes, slope, EC₅₀, asymmetry).<br>
+            Specify <strong>min</strong> and <strong>max</strong> for each; the main plot uses the
+            <strong>midpoint</strong> of each range.
+          </li>
+
+          <li data-img="tut_3">
+            <strong>Relative potencies (RP)</strong><br>
+            Many pages allow you to specify <strong>RP values</strong> to create a family of parallel curves.<br>
+            For example, RP = 0.4, 1.0, 1.6 corresponds roughly to <strong>40%</strong>, <strong>100%</strong>,
+            and <strong>160%</strong> potency.
+          </li>
+
+          <li data-img="tut_4">
+            <strong>Run and save experiments</strong><br>
+            After entering your inputs, the tool generates the corresponding dose–response curves.<br>
+            Click <strong>“Add curve”</strong> to <em>lock in</em> the current curve family (including RP variants).<br>
+            You can then adjust parameters and compare multiple saved experiments.
+          </li>
+
+          <li data-img="tut_5">
+            <strong>Edge-case panels</strong><br>
+            Each model page includes an <strong>edge-case view</strong> that combines min/max parameter values.<br>
+            This lets you see how extreme settings influence the curve and whether your dilution scheme
+            still covers anchors and the linear region.
+          </li>
+
+          <li data-img="tut_6">
+            <strong>Review &amp; export (future extension)</strong><br>
+            Saved curves and well values are kept in tables that can be exported
+            for downstream analysis or documentation.
+          </li>
+
+        </ol>
+      </div>
+
+      <div class="usage-figure">
+        <img id="usage-tut-img"
+             src="data:image/png;base64,{default_src}"
+             alt="Usage tutorial step">
+      </div>
+    </div>
+
+    <script>
+    const imgMap = {{
+        {img_map_entries}
+    }};
+    const usageImg = document.getElementById("usage-tut-img");
+    const steps = document.querySelectorAll(".usage-steps li");
+
+    steps.forEach((li) => {{
+        li.addEventListener("mouseenter", () => {{
+            const key = li.getAttribute("data-img");
+            if (key && imgMap[key]) {{
+                usageImg.src = imgMap[key];
+            }}
+        }});
+        li.addEventListener("mouseleave", () => {{
+            if (imgMap["tut_0"]) {{
+                usageImg.src = imgMap["tut_0"];
+            }}
+        }});
+    }});
+    </script>
+    """
+
+    st.markdown(usage_html, unsafe_allow_html=True)
+
+else:
+    # Fallback: original markdown if images aren't available
+    st.markdown(
+        """
+**Set the dilution series**
+
+Begin by entering the **top concentration** and the **dilution factor**.  
+These values define the concentration levels used to generate the dose–response curves.  
+You can optionally override with **7 custom dilution factors**.
+
+**Specify parameter ranges**
+
+Each model includes parameters that control curve shape and behavior  
+(e.g., asymptotes, slope, EC₅₀, asymmetry).  
+Specify **min** and **max** for each; the main plot uses the **midpoint** of each range.
+
+**Relative potencies (RP)**
+
+Many pages allow you to specify **RP values** to create a family of parallel curves.  
+For example, RP = 0.4, 1.0, 1.6 corresponds roughly to **40%**, **100%**, and **160%** potency.
+
+**Run and save experiments**
+
+After entering your inputs, the tool generates the corresponding dose–response curves.  
+Click **“Add curve”** to *lock in* the current curve family (including RP variants).  
+You can then adjust parameters and compare multiple saved experiments.
+
+**Edge-case panels**
+
+Each model page includes an **edge-case view** that combines min/max parameter values.  
+This lets you see how extreme settings influence the curve and whether your dilution scheme  
+still covers anchors and the linear region.
+
+**Review & export (future extension)**
+
+Saved curves and well values are kept in tables that can be exported  
+for downstream analysis or documentation.
+"""
+    )
+
+st.markdown("---")
+
+
 # ===================== Optimization + Scoring (two-column layout) =====================
 
 opt_col, detail_col = st.columns([1.1, 1.2])
@@ -310,15 +500,23 @@ For the 7 wells, the **target pattern** is roughly:
 - 3 linear points  
 - 2 top anchors  
 
-For each candidate factor and each parameter/RP combination, the app computes a penalty score:
+For each candidate factor and each parameter/RP combination, the app computes a
+**penalty score**:
+        """
+    )
 
-\[
-J = (n_{\text{bottom}} - 2)^2 + (n_{\text{linear}} - 3)^2 + (n_{\text{top}} - 2)^2
-\]
+    # --- Equation on its own line, like the 4PL page ---
+    st.latex(r"""
+        J = (n_{\text{bottom}} - 2)^2
+        + (n_{\text{linear}} - 3)^2
+        + (n_{\text{top}} - 2)^2
+    """)
 
-- \(n_{\text{bottom}}\) = wells below the lower anchor boundary  
-- \(n_{\text{linear}}\) = wells between ~10–90% of the dynamic range  
-- \(n_{\text{top}}\) = wells above the upper anchor boundary  
+    st.markdown(
+        r"""
+- *bottom* = wells below the lower anchor boundary  
+- *linear* = wells between ~10–90% of the dynamic range  
+- *top* = wells above the upper anchor boundary  
 
 For a given factor, the tool looks across **all** edge-case parameter
 combinations (and RPs) and takes the **worst-case** \(J\).  
@@ -328,75 +526,5 @@ That worst-case pattern is summarized in the table as:
 - `worst_linear`  
 - `worst_upper`  
 - `score` (the corresponding \(J\))
-"""
+        """
     )
-    
-with st.expander("Anchor pattern scoring details"):
-
-    st.markdown(
-        r"""
-**Minimum vs. preferred patterns**
-
-Two flags summarize how acceptable a factor is:
-
-- **`meets_min`**  
-  - At least **1 bottom**, **2 linear**, **1 top**
-
-- **`meets_preferred`**  
-  - At least **2 bottom**, **3 linear**, **2 top**
-
-When picking a recommended factor, the app prefers:
-
-1. Factors that satisfy **`meets_min`**  
-2. Among those, factors that also satisfy **`meets_preferred`**  
-3. Among those, the **smallest worst-case score \(J\)**  
-4. If still tied, the **smaller dilution factor** (finer spacing)
-
-This rules out unbalanced patterns like **3–3–1** or **4–2–1** and
-pushes you toward dilution schemes closer to **2–3–2** or **2–4–2**.
-"""
-    )
-
-st.markdown("---")
-
-# ===================== Usage notes (full width, at bottom) =====================
-
-st.markdown("### 📋 Usage notes")
-
-st.markdown(
-    """
-**Set the dilution series**
-
-Begin by entering the **top concentration** and the **dilution factor**.  
-These values define the concentration levels used to generate the dose–response curves.  
-You can optionally override with **7 custom dilution factors**.
-
-**Specify parameter ranges**
-
-Each model includes parameters that control curve shape and behavior  
-(e.g., asymptotes, slope, EC₅₀, asymmetry).  
-Specify **min** and **max** for each; the main plot uses the **midpoint** of each range.
-
-**Relative potencies (RP)**
-
-Many pages allow you to specify **RP values** to create a family of parallel curves.  
-For example, RP = 0.4, 1.0, 1.6 corresponds roughly to **40%**, **100%**, and **160%** potency.
-
-**Run and save experiments**
-
-After entering your inputs, the tool generates the corresponding dose–response curves.  
-Click **“Add curve”** to *lock in* the current curve family (including RP variants).  
-You can then adjust parameters and compare multiple saved experiments.
-
-**Edge-case panels**
-
-Each model page includes an **edge-case view** that combines min/max parameter values.  
-This lets you see how extreme settings influence the curve and whether your dilution scheme  
-still covers anchors and the linear region.
-
-**Review & export (future extension)**
-
-Saved curves and well values are kept in tables that can be exported  
-for downstream analysis or documentation.
-"""
-)
