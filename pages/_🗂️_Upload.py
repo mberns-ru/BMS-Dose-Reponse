@@ -3,6 +3,17 @@ import pandas as pd
 from PIL import Image
 import io, base64, os
 
+
+st.markdown("""
+<style>
+    /* Hide the built-in "Select model for analysis" dropdown */
+    [data-testid="stAppSelectbox"] {
+        display: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 # --- Logo ---
 LOGO_PATH = "graphics/Logo.jpg"
 try:
@@ -222,14 +233,8 @@ page_map = {
     - **Linear**: Linear trend in log10(concentration) space.
     """)
 
-st.markdown("""
-<style>
-    /* Hide the built-in "Select model for analysis" dropdown */
-    [data-testid="stAppSelectbox"] {
-        display: none !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+
+
 
 
 
