@@ -110,12 +110,11 @@ if img_b64 is not None:
                 <p>Use the sidebar to navigate between pages:</p>
                 <ul>
                     <li>🏠 <strong>Home</strong> – Overview &amp; quick-start guide</li>
+                    <li>🗂️ <strong>Upload</strong> – Import experimental data and compute parameter ranges</li>
                     <li>🧪 <strong>4PL Simulator</strong> – Standard 4-parameter logistic curves</li>
                     <li>⚗️ <strong>5PL Simulator</strong> – 5-parameter logistic with asymmetry</li>
                     <li>🔬 <strong>2PL Simulator</strong> – Normalized 2-parameter logistic curves</li>
                     <li>📐 <strong>Linear Simulator</strong> – Linear model in log₁₀(concentration) space</li>
-                    <li>🗂️ <strong>Upload</strong> – Import experimental data and compute parameter ranges</li>
-
                 </ul>
             </div>
         </div>
