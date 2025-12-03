@@ -1,7 +1,4 @@
 import streamlit as st
-from PIL import Image
-import base64
-import io
 import os
 import base64
 
@@ -11,37 +8,50 @@ st.set_page_config(
     layout="wide",
 )
 
-# ===================== Sidebar logo (consistent with other pages) =====================
+# ===================== Sidebar + header logo =====================
 
 LOGO_PATH = "graphics/Logo.jpg"
 
-img_b64 = None
-if os.path.exists(LOGO_PATH):
-    try:
-        logo = Image.open(LOGO_PATH)
-        buffer = io.BytesIO()
-        logo.save(buffer, format="PNG")
-        img_b64 = base64.b64encode(buffer.getvalue()).decode()
 
-        st.markdown(
-            f"""
-            <style>
-                [data-testid="stSidebarNav"]::before {{
-                    content: "";
-                    display: block;
-                    height: 200px;
-                    margin-bottom: 1rem;
-                    background-image: url("data:image/png;base64,{img_b64}");
-                    background-position: center;
-                    background-repeat: no-repeat;
-                    background-size: contain;
-                }}
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-    except Exception:
-        pass
+@st.cache_resource(show_spinner=False)
+def get_logo_b64(path: str = LOGO_PATH) -> str | None:
+    """
+    Load the logo file once and cache its base64 representation.
+
+    Uses a context manager so the file handle is closed immediately,
+    avoiding '[Errno 24] Too many open files' on repeated reruns.
+    """
+    if not os.path.exists(path):
+        return None
+
+    # Open + close file immediately
+    with open(path, "rb") as f:
+        data = f.read()
+
+    return base64.b64encode(data).decode("utf-8")
+
+
+img_b64 = get_logo_b64(LOGO_PATH)
+
+if img_b64 is not None:
+    # Sidebar logo
+    st.markdown(
+        f"""
+        <style>
+            [data-testid="stSidebarNav"]::before {{
+                content: "";
+                display: block;
+                height: 200px;
+                margin-bottom: 1rem;
+                background-image: url("data:image/png;base64,{img_b64}");
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: contain;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 st.sidebar.success("Select a page above ☝️")
 
@@ -272,7 +282,7 @@ st.markdown("---")
 
 st.markdown("### 📋 Usage notes")
 st.markdown(
-        """
+    """
 **Set the dilution series**
 
 Begin by entering the **top concentration** and the **dilution factor**.  
@@ -307,10 +317,9 @@ still covers anchors and the linear region.
 Saved curves and well values are kept in tables that can be exported  
 for downstream analysis or documentation.
 """
-    )
+)
 
 st.markdown("---")
-
 
 # ===================== Optimization + Scoring (two-column layout) =====================
 
