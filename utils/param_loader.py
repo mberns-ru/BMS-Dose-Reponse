@@ -76,7 +76,7 @@ def _normalize(d: dict | None):
 def _pairs_from_rows(rmin: pd.Series, rmax: pd.Series, cols: list[str]):
     try:
         pairs = []
-        for c in cols:
+        for c in cols[:5]:
             lo = float(rmin[c]); hi = float(rmax[c])
             if lo > hi:
                 lo, hi = hi, lo
