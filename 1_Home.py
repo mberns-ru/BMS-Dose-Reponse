@@ -152,7 +152,7 @@ with left_col:
            - Even or custom 7-step dilution factors  
         4. **Specify parameter ranges** for that model  
            - The main curve uses the **midpoint** of each range.  
-        5. (**Optional**) Enter **relative potencies (RP)**  
+        5. (_Optional_) Enter **relative potencies (RP)**  
            - Generates parallel sample curves (e.g. 40%, 100%, 160% of reference).  
         6. **Add & lock curves**  
            - Save curve families and compare them across different parameter sets.  
@@ -499,7 +499,7 @@ For the 7 wells, the **target pattern** is roughly:
 
 - 2 bottom anchors  
 - 3 linear points  
-- 2 top anchors  
+- 2 top anchors  4
 
 For each candidate factor and each parameter/RP combination, the app computes a
 **penalty score**:

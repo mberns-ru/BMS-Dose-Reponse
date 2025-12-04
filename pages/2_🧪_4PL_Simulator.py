@@ -53,39 +53,44 @@ def _bounds_from_params_df(df: pd.DataFrame | None):
 def _defaults():
     return {"a": (0.80, 1.20), "b": (-2.00, -0.50), "c": (0.10, 3.00), "d": (0.00, 0.20)}
 
-# Read ranges coming from the Upload page
+# --- Read ranges + detect whether they came from the Upload page ---
 _raw = load_param_bounds()
+_model_input = st.session_state.get("model_input")
+
+# Treat any usable bounds/model_input as "from upload"
+_FROM_UPLOAD = (_raw is not None) or (
+    _model_input is not None and not getattr(_model_input, "empty", False)
+)
+
 _bounds = _normalize_bounds(_raw)
 if _bounds is None:
-    _bounds = _normalize_bounds(_bounds_from_params_df(st.session_state.get("model_input")))
+    _bounds = _normalize_bounds(_bounds_from_params_df(_model_input))
 if _bounds is None:
     _bounds = _defaults()
 
-# Allow re-prefill when upload changes
+# Allow re-prefill when bounds change
 if st.session_state.get("_last_bounds") != _bounds:
     st.session_state.pop("prefilled_4pl", None)
     st.session_state["_last_bounds"] = _bounds
 
 # Prefill only once so user edits don’t get stomped
 if "prefilled_4pl" not in st.session_state:
-    for p in ["a","b","c","d"]:
+    for p in ["a", "b", "c", "d"]:
         lo, hi = _bounds[p]
         st.session_state[f"{p}_min"] = lo
         st.session_state[f"{p}_max"] = hi
     st.session_state["prefilled_4pl"] = True
-    st.info(
-        f"Loaded ranges → A({st.session_state['a_min']},{st.session_state['a_max']}), "
-        f"B({st.session_state['b_min']},{st.session_state['b_max']}), "
-        f"C({st.session_state['c_min']},{st.session_state['c_max']}), "
-        f"D({st.session_state['d_min']},{st.session_state['d_max']})"
-    )
 
-# Optional: show what was passed in from the Upload page
-with st.expander("Loaded from Upload page", expanded=False):
-    st.write("param_bounds:", st.session_state.get("param_bounds"))
-    mi = st.session_state.get("model_input")
-    if isinstance(mi, pd.DataFrame):
-        st.dataframe(mi)
+    # Build the "Loaded ranges → ..." message, but only if Upload was used
+    if _FROM_UPLOAD:
+        st.session_state["_4pl_loaded_ranges_msg"] = (
+            f"Loaded ranges → A({st.session_state['a_min']},{st.session_state['a_max']}), "
+            f"B({st.session_state['b_min']},{st.session_state['b_max']}), "
+            f"C({st.session_state['c_min']},{st.session_state['c_max']}), "
+            f"D({st.session_state['d_min']},{st.session_state['d_max']})"
+        )
+    else:
+        st.session_state.pop("_4pl_loaded_ranges_msg", None)
 
 # ===================== Sidebar Logo (works on all pages) =====================
 LOGO_PATH = "graphics/Logo.jpg"
@@ -116,27 +121,61 @@ st.markdown(
 st.title("4-Parameter Logistic (4PL) Simulator")
 
 with st.expander("How to use this tool", expanded=False):
+
+    # --- 4PL parameters (left) + equation (right) ---
+    params_col, eqn_col = st.columns([1.7, 1.3])
+
+    with params_col:
+        st.markdown(
+            r"""
+### **Parameters**
+
+- **A** — *Lower asymptote*  
+  The minimum response value the curve approaches at very low concentrations.
+
+- **B** — *Slope / Hill slope*  
+  Controls the steepness of the curve; higher magnitude = sharper transition.
+
+- **C** — *EC₅₀ (Midpoint)*  
+  The concentration at which the response is halfway between A and D.
+
+- **D** — *Upper asymptote*  
+  The maximum response the curve approaches at high concentrations.
+            """
+        )
+
+    with eqn_col:
+        st.markdown("### **Equation**")
+        st.latex(
+            r"""
+            y = D + \frac{A - D}{1 + \left(\frac{x}{C}\right)^{B}}
+            """
+        )
+
+    # --- Edge-case envelope explanation ---
     st.markdown(
+        r"""
+### Edge-case envelope
+
+To show how sensitive the dose–response curve is to parameter uncertainty, the tool plots all  
+**16 combinations** of minimum and maximum values of the four parameters:
+
+$$
+(A_{\min/\max},\ B_{\min/\max},\ C_{\min/\max},\ D_{\min/\max})
+$$
+
+Each line represents one extreme configuration.  
+Together, these curves form an **edge-case envelope** showing:
+
+- The steepest and shallowest possible slopes  
+- The earliest and latest possible transitions  
+- The lowest and highest asymptotes consistent with your input ranges  
+
+This helps visualize the full range of behaviors the assay could produce under uncertainty.
         """
-**Parameters**
-
-- **A** is the lower asymptote  
-- **B** indicates steepness (proportional to the slope of the curve at the mid-point)  
-- **C** is the concentration corresponding to 50% of the response (**EC₅₀**)  
-- **D** is the upper asymptote  
-
-**Edge cases**
-
-These plots show all the edge-case combinations of parameters **A**, **B**, **C**, and **D**.  
-Each panel represents a minimum/maximum setting of those parameters so users can see how extreme
-values change the shape and behavior of the response curve.  
-
-**Add curve**
-
-Enter a name for the base curve. Once submitted, it will be saved and displayed in the curve list
-at the bottom-left.
-"""
     )
+
+
 
 # ======= Session State / Defaults =======
 DEFAULTS = {
@@ -402,13 +441,6 @@ left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 with left_panel:
     st.subheader("Dilution series")
 
-    with st.expander("What does 'Dilution series' mean?", expanded=False):
-        st.markdown(
-            "The **dilution factor** is how much each step is diluted from the previous one, "
-            "creating a series of decreasing doses for the curve. For example, a factor of 3 "
-            "means each well is 1/3 of the concentration of the prior well."
-        )
-
     st.number_input(
         "Top concentration",
         min_value=1e-12, max_value=1e12,
@@ -448,15 +480,34 @@ with graph_col:
 with left_panel:
     st.markdown("### Parameter ranges (min/max)")
 
-    with st.expander("What do A, B, C, and D mean?", expanded=False):
-        st.markdown(
-            """
-**A** – Lower asymptote  
-**B** – Steepness (slope around the midpoint)  
-**C** – EC₅₀: concentration giving 50% response  
-**D** – Upper asymptote  
-            """
-        )
+    # --- Show upload-related info only if we actually came from the Upload page ---
+    if _FROM_UPLOAD:
+        # Raw data / summary from Upload page
+        with st.expander("Loaded from Upload page", expanded=False):
+            st.write("param_bounds:", st.session_state.get("param_bounds"))
+            mi = st.session_state.get("model_input")
+            if isinstance(mi, pd.DataFrame):
+                st.dataframe(mi)
+
+        # Blue info banner with loaded ranges (if available)
+        msg = st.session_state.get("_4pl_loaded_ranges_msg")
+        if msg:
+            st.info(msg)
+
+        # Clear load button
+        clear_col, _ = st.columns([1, 3])
+        with clear_col:
+            if st.button("Clear load", key="clear_4pl_load"):
+                # Remove anything that marks this as "from upload"
+                st.session_state.pop("param_bounds", None)
+                st.session_state.pop("model_input", None)
+                st.session_state.pop("_4pl_loaded_ranges_msg", None)
+                st.session_state.pop("_last_bounds", None)
+                st.session_state.pop("prefilled_4pl", None)
+
+                # Rerun so the top-of-file logic rebuilds defaults
+                st.rerun()
+
 
     # Ensure defaults exist
     defaults = {
