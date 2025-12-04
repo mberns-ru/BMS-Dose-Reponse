@@ -56,7 +56,7 @@ else:
 # ===================== Page config =====================
 
 st.set_page_config(
-    page_title="5-Parameter Logistic (5PL) Simulator",
+    page_title="5PL Quantification Tool",
     layout="wide",
 )
 
@@ -92,7 +92,7 @@ except Exception:
 
 # ===================== Title & help text =====================
 
-st.title("5-Parameter Logistic (5PL) Simulator")
+st.title("5PL Quantification Tool")
 
 with st.expander("How to use this tool", expanded=False):
     st.markdown(
