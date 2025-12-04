@@ -2,11 +2,34 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 import io, base64, os
-from utils.logo_utils import get_sidebar_logo_css
 
-# Sidebar logo (consistent with other pages)
-st.markdown(get_sidebar_logo_css(height=200), unsafe_allow_html=True)
-st.sidebar.success("Select a page above ☝️")
+# --- Logo ---
+LOGO_PATH = "graphics/Logo.jpg"
+try:
+    if os.path.exists(LOGO_PATH):
+        logo = Image.open(LOGO_PATH)
+        buffer = io.BytesIO()
+        logo.save(buffer, format="PNG")
+        img_b64 = base64.b64encode(buffer.getvalue()).decode()
+        st.markdown(
+            f"""
+            <style>
+                [data-testid="stSidebarNav"]::before {{
+                    content: "";
+                    display: block;
+                    height: 200px;
+                    margin-bottom: 1rem;
+                    background-image: url("data:image/png;base64,{img_b64}");
+                    background-position: center;
+                    background-repeat: no-repeat;
+                    background-size: contain;
+                }}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+except Exception:
+    st.warning("Logo could not be loaded.")
 
 # --- Helpers: detect model + route ---
 def _norm_cols(cols):
@@ -201,7 +224,6 @@ else:
     - **2PL**: Simpler, slope + EC50.
     - **Linear**: Linear trend in log10(concentration) space.
     """)
-
 
 
 
