@@ -33,25 +33,24 @@ def load_param_bounds():
             rmax = df2.loc[s == "max"].iloc[0]
 
             # Use named a,b,c,d if present; else first 4 numeric columns (excluding 'sample')
-            cols_named = [c for c in ["a", "b", "c", "d"] if c in df2.columns]
-            if len(cols_named) == 4:
+            cols_named = [c for c in ["a", "b", "c", "d", "e"] if c in df2.columns] #added e
+            if len(cols_named) >= 4:
                 return _pairs_from_rows(rmin, rmax, cols_named)
 
             num_cols = [c for c in df2.columns
                         if c != "sample" and pd.api.types.is_numeric_dtype(df2[c])]
             if len(num_cols) >= 4:
-                return _pairs_from_rows(rmin, rmax, num_cols[:4])
+                return _pairs_from_rows(rmin, rmax, num_cols[:5])
 
     # 2b) Fallback: per-column min/max across first 4 numeric columns
     num_cols = [c for c in df2.columns
                 if c != "sample" and pd.api.types.is_numeric_dtype(df2[c])]
     if len(num_cols) >= 4:
+        max_cols = num_cols[:5]
         mins = [float(df2[c].min()) for c in num_cols[:4]]
         maxs = [float(df2[c].max()) for c in num_cols[:4]]
-        return {"a": (mins[0], maxs[0]),
-                "b": (mins[1], maxs[1]),
-                "c": (mins[2], maxs[2]),
-                "d": (mins[3], maxs[3])}
+        keys = ["a", "b", "c", "d", "e"]  
+        return {keys[i]: (mins[i], maxs[i]) for i in range(len(max_cols))}
 
     return None
 
@@ -61,10 +60,10 @@ def _normalize(d: dict | None):
         return None
     out = {}
     try:
-        for k in ["a", "b", "c", "d"]:
+        for k in ["a", "b", "c", "d", "e"]:
             v = d.get(k) or d.get(k.upper())
             if v is None or len(v) != 2:
-                return None
+                continue
             lo, hi = float(v[0]), float(v[1])
             if lo > hi:
                 lo, hi = hi, lo
@@ -77,12 +76,12 @@ def _normalize(d: dict | None):
 def _pairs_from_rows(rmin: pd.Series, rmax: pd.Series, cols: list[str]):
     try:
         pairs = []
-        for c in cols[:4]:
+        for c in cols[:5]:
             lo = float(rmin[c]); hi = float(rmax[c])
             if lo > hi:
                 lo, hi = hi, lo
             pairs.append((lo, hi))
-        keys = ["a", "b", "c", "d"]
+        keys = ["a", "b", "c", "d", "e"]
         return {keys[i]: pairs[i] for i in range(4)}
     except Exception:
         return None

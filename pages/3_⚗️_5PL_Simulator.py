@@ -71,6 +71,8 @@ def _bounds_from_params_df_5pl(df: pd.DataFrame | None):
             }
             if len(num_cols) >= 5:
                 out["e"] = (float(row_min.iloc[4]), float(row_max.iloc[4]))
+            else:
+                out["e"] = _defaults_5pl()["e"]
             return out
 
         # Fallback: min/max of first 4–5 numeric columns
@@ -93,6 +95,8 @@ def _bounds_from_params_df_5pl(df: pd.DataFrame | None):
         }
         if len(num_cols) >= 5:
             out["e"] = (mins[4], maxs[4])
+        else:
+            out["e"] = _defaults_5pl()["e"]
         return out
     except Exception:
         return None
