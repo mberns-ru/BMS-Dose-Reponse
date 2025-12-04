@@ -1,4 +1,7 @@
 import streamlit as st
+from PIL import Image
+import base64
+import io
 import os
 import base64
 
@@ -8,50 +11,45 @@ st.set_page_config(
     layout="wide",
 )
 
-# ===================== Sidebar + header logo =====================
+# ===================== Sidebar logo (consistent with other pages) =====================
 
 LOGO_PATH = "graphics/Logo.jpg"
 
+# Tutorial step images (for Usage notes hover)
+TUT_IMAGES = {}
+for i in range(7):  # tut_0 ... tut_6
+    fname = f"graphics/tut_{i}.png"
+    if os.path.exists(fname):
+        with open(fname, "rb") as f:
+            TUT_IMAGES[f"tut_{i}"] = base64.b64encode(f.read()).decode("utf-8")
 
-@st.cache_resource(show_spinner=False)
-def get_logo_b64(path: str = LOGO_PATH) -> str | None:
-    """
-    Load the logo file once and cache its base64 representation.
+img_b64 = None
+if os.path.exists(LOGO_PATH):
+    try:
+        logo = Image.open(LOGO_PATH)
+        buffer = io.BytesIO()
+        logo.save(buffer, format="PNG")
+        img_b64 = base64.b64encode(buffer.getvalue()).decode()
 
-    Uses a context manager so the file handle is closed immediately,
-    avoiding '[Errno 24] Too many open files' on repeated reruns.
-    """
-    if not os.path.exists(path):
-        return None
-
-    # Open + close file immediately
-    with open(path, "rb") as f:
-        data = f.read()
-
-    return base64.b64encode(data).decode("utf-8")
-
-
-img_b64 = get_logo_b64(LOGO_PATH)
-
-if img_b64 is not None:
-    # Sidebar logo
-    st.markdown(
-        f"""
-        <style>
-            [data-testid="stSidebarNav"]::before {{
-                content: "";
-                display: block;
-                height: 200px;
-                margin-bottom: 1rem;
-                background-image: url("data:image/png;base64,{img_b64}");
-                background-position: center;
-                background-repeat: no-repeat;
-                background-size: contain;
-            }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.markdown(
+            f"""
+            <style>
+                [data-testid="stSidebarNav"]::before {{
+                    content: "";
+                    display: block;
+                    height: 200px;
+                    margin-bottom: 1rem;
+                    background-image: url("data:image/png;base64,{img_b64}");
+                    background-position: center;
+                    background-repeat: no-repeat;
+                    background-size: contain;
+                }}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+    except Exception:
+        pass
 
 st.sidebar.success("Select a page above ☝️")
 
@@ -281,8 +279,145 @@ st.markdown("---")
 # ===================== Usage notes (full width, at bottom) =====================
 
 st.markdown("### 📋 Usage notes")
-st.markdown(
+
+if TUT_IMAGES:
+    # build JS image map from the loaded base64 strings
+    img_map_entries = ",\n        ".join(
+        f'"{key}": "data:image/png;base64,{b64}"'
+        for key, b64 in TUT_IMAGES.items()
+    )
+
+    default_src = TUT_IMAGES.get("tut_0", "")
+
+    usage_html = f"""
+    <style>
+    .usage-wrapper {{
+        display: flex;
+        gap: 2.5rem;
+        align-items: flex-start;
+        margin-top: 0.75rem;
+    }}
+    .usage-text {{
+        flex: 1.6;
+    }}
+    .usage-steps {{
+        padding-left: 1.2rem;
+        margin: 0;
+    }}
+    .usage-steps li {{
+        margin-bottom: 0.9rem;
+        line-height: 1.45;
+        cursor: pointer;
+    }}
+    .usage-steps li:hover {{
+        color: var(--primary-color);
+    }}
+    .usage-figure {{
+        flex: 1.1;
+        display: flex;
+        justify-content: center;
+    }}
+    .usage-figure img {{
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.9rem;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    }}
+    @media (max-width: 900px) {{
+        .usage-wrapper {{
+            flex-direction: column;
+        }}
+        .usage-figure {{
+            margin-top: 1rem;
+        }}
+    }}
+    </style>
+
+    <div class="usage-wrapper">
+      <div class="usage-text">
+        <ol class="usage-steps">
+
+          <li data-img="tut_1">
+            <strong>Set the dilution series</strong><br>
+            Begin by entering the <strong>top concentration</strong> and the <strong>dilution factor</strong>.<br>
+            These values define the concentration levels used to generate the dose–response curves.<br>
+            You can optionally override with <strong>7 custom dilution factors</strong>.
+          </li>
+
+          <li data-img="tut_2">
+            <strong>Specify parameter ranges</strong><br>
+            Each model includes parameters that control curve shape and behavior
+            (e.g., asymptotes, slope, EC₅₀, asymmetry).<br>
+            Specify <strong>min</strong> and <strong>max</strong> for each; the main plot uses the
+            <strong>midpoint</strong> of each range.
+          </li>
+
+          <li data-img="tut_3">
+            <strong>Relative potencies (RP)</strong><br>
+            Many pages allow you to specify <strong>RP values</strong> to create a family of parallel curves.<br>
+            For example, RP = 0.4, 1.0, 1.6 corresponds roughly to <strong>40%</strong>, <strong>100%</strong>,
+            and <strong>160%</strong> potency.
+          </li>
+
+          <li data-img="tut_4">
+            <strong>Run and save experiments</strong><br>
+            After entering your inputs, the tool generates the corresponding dose–response curves.<br>
+            Click <strong>“Add curve”</strong> to <em>lock in</em> the current curve family (including RP variants).<br>
+            You can then adjust parameters and compare multiple saved experiments.
+          </li>
+
+          <li data-img="tut_5">
+            <strong>Edge-case panels</strong><br>
+            Each model page includes an <strong>edge-case view</strong> that combines min/max parameter values.<br>
+            This lets you see how extreme settings influence the curve and whether your dilution scheme
+            still covers anchors and the linear region.
+          </li>
+
+          <li data-img="tut_6">
+            <strong>Review &amp; export (future extension)</strong><br>
+            Saved curves and well values are kept in tables that can be exported
+            for downstream analysis or documentation.
+          </li>
+
+        </ol>
+      </div>
+
+      <div class="usage-figure">
+        <img id="usage-tut-img"
+             src="data:image/png;base64,{default_src}"
+             alt="Usage tutorial step">
+      </div>
+    </div>
+
+    <script>
+    const imgMap = {{
+        {img_map_entries}
+    }};
+    const usageImg = document.getElementById("usage-tut-img");
+    const steps = document.querySelectorAll(".usage-steps li");
+
+    steps.forEach((li) => {{
+        li.addEventListener("mouseenter", () => {{
+            const key = li.getAttribute("data-img");
+            if (key && imgMap[key]) {{
+                usageImg.src = imgMap[key];
+            }}
+        }});
+        li.addEventListener("mouseleave", () => {{
+            if (imgMap["tut_0"]) {{
+                usageImg.src = imgMap["tut_0"];
+            }}
+        }});
+    }});
+    </script>
     """
+
+    st.markdown(usage_html, unsafe_allow_html=True)
+
+else:
+    # Fallback: original markdown if images aren't available
+    st.markdown(
+        """
 **Set the dilution series**
 
 Begin by entering the **top concentration** and the **dilution factor**.  
@@ -317,9 +452,10 @@ still covers anchors and the linear region.
 Saved curves and well values are kept in tables that can be exported  
 for downstream analysis or documentation.
 """
-)
+    )
 
 st.markdown("---")
+
 
 # ===================== Optimization + Scoring (two-column layout) =====================
 
