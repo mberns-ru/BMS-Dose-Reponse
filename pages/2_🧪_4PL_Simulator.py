@@ -9,60 +9,91 @@ import dose_response as dp
 from PIL import Image
 import base64, io
 
+st.set_page_config(page_title="4PL Quantification Tool", layout="wide")
 
-# ===================== Uploaded Data Integration =========================
+from utils.param_loader import load_param_bounds
 
-# ===================== Auto-populate parameters from Upload Page =====================
-params_df = st.session_state.get("model_input", None)
-selected_model = st.session_state.get("selected_model", None)
+def _normalize_bounds(bounds: dict | None):
+    if not isinstance(bounds, dict):
+        return None
+    out = {}
+    for k in ["a","b","c","d"]:
+        pair = bounds.get(k) or bounds.get(k.upper())
+        if not pair or len(pair) != 2:
+            return None
+        lo, hi = map(float, pair)
+        if lo > hi:
+            lo, hi = hi, lo
+        out[k] = (lo, hi)
+    return out
 
-# Default values for 4PL
-A_default, B_default, C_default, D_default = 0.0, 100.0, 50.0, 1.0
+def _bounds_from_params_df(df: pd.DataFrame | None):
+    if df is None or not isinstance(df, pd.DataFrame):
+        return None
+    try:
+        if "sample" in df.columns and {"Min","Max"}.issubset(set(df["sample"])):
+            num_cols = [c for c in df.columns if c != "sample"]
+            row_min = df.loc[df["sample"]=="Min", num_cols].iloc[0]
+            row_max = df.loc[df["sample"]=="Max", num_cols].iloc[0]
+            return {
+                "a": (float(row_min.iloc[0]), float(row_max.iloc[0])),
+                "b": (float(row_min.iloc[1]), float(row_max.iloc[1])),
+                "c": (float(row_min.iloc[2]), float(row_max.iloc[2])),
+                "d": (float(row_min.iloc[3]), float(row_max.iloc[3])),
+            }
+        num_cols = [c for c in df.columns if c != "sample" and np.issubdtype(df[c].dtype, np.number)]
+        if len(num_cols) >= 4:
+            mins = [float(df[c].min()) for c in num_cols[:4]]
+            maxs = [float(df[c].max()) for c in num_cols[:4]]
+            return {"a":(mins[0],maxs[0]),"b":(mins[1],maxs[1]),"c":(mins[2],maxs[2]),"d":(mins[3],maxs[3])}
+    except Exception:
+        return None
+    return None
 
-if params_df is not None and selected_model == "4PL":
-    st.info("Using parameter ranges from Upload Page for 4PL")
-    st.dataframe(params_df)
+def _defaults():
+    return {"a": (0.80, 1.20), "b": (-2.00, -0.50), "c": (0.10, 3.00), "d": (0.00, 0.20)}
 
-    numeric_cols = [c for c in params_df.columns if c != "sample"]
+# Read ranges coming from the Upload page
+_raw = load_param_bounds()
+_bounds = _normalize_bounds(_raw)
+if _bounds is None:
+    _bounds = _normalize_bounds(_bounds_from_params_df(st.session_state.get("model_input")))
+if _bounds is None:
+    _bounds = _defaults()
 
-    if 'Average' in params_df['sample'].values:
-        row = params_df[params_df['sample'] == 'Average']
-        A = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else A_default
-        B = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else B_default
-        C = row[numeric_cols[2]].values[0] if len(numeric_cols) > 2 else C_default
-        D = row[numeric_cols[3]].values[0] if len(numeric_cols) > 3 else D_default
+# Allow re-prefill when upload changes
+if st.session_state.get("_last_bounds") != _bounds:
+    st.session_state.pop("prefilled_4pl", None)
+    st.session_state["_last_bounds"] = _bounds
 
-    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
-        row_min = params_df[params_df['sample'] == 'Min']
-        row_max = params_df[params_df['sample'] == 'Max']
-        # Midpoint of min/max for each numeric column
-        A = (row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2 if len(numeric_cols) > 0 else A_default
-        B = (row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2 if len(numeric_cols) > 1 else B_default
-        C = (row_min[numeric_cols[2]].values[0] + row_max[numeric_cols[2]].values[0]) / 2 if len(numeric_cols) > 2 else C_default
-        D = (row_min[numeric_cols[3]].values[0] + row_max[numeric_cols[3]].values[0]) / 2 if len(numeric_cols) > 3 else D_default
+# Prefill only once so user edits don’t get stomped
+if "prefilled_4pl" not in st.session_state:
+    for p in ["a","b","c","d"]:
+        lo, hi = _bounds[p]
+        st.session_state[f"{p}_min"] = lo
+        st.session_state[f"{p}_max"] = hi
+    st.session_state["prefilled_4pl"] = True
+    st.info(
+        f"Loaded ranges → A({st.session_state['a_min']},{st.session_state['a_max']}), "
+        f"B({st.session_state['b_min']},{st.session_state['b_max']}), "
+        f"C({st.session_state['c_min']},{st.session_state['c_max']}), "
+        f"D({st.session_state['d_min']},{st.session_state['d_max']})"
+    )
 
-    else:
-        st.warning("Uploaded data format not recognized. Using default 4PL values.")
-        A, B, C, D = A_default, B_default, C_default, D_default
-
-else:
-    # No uploaded data or model not selected -> use defaults
-    A, B, C, D = A_default, B_default, C_default, D_default
-
-
-
+# Optional: show what was passed in from the Upload page
+with st.expander("Loaded from Upload page", expanded=False):
+    st.write("param_bounds:", st.session_state.get("param_bounds"))
+    mi = st.session_state.get("model_input")
+    if isinstance(mi, pd.DataFrame):
+        st.dataframe(mi)
 
 # ===================== Sidebar Logo (works on all pages) =====================
-
 LOGO_PATH = "graphics/Logo.jpg"
-
-# Load and convert image
 logo = Image.open(LOGO_PATH)
 buffer = io.BytesIO()
 logo.save(buffer, format="PNG")
 img_b64 = base64.b64encode(buffer.getvalue()).decode()
 
-# Inject logo above navigation menu
 st.markdown(
     f"""
     <style>
@@ -81,11 +112,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-st.set_page_config(page_title="4PL Quantification Tool", layout="wide")
-
 # ======= Title =======
-st.title("4PL Quantification Tool")
+st.title("4-Parameter Logistic (4PL) Simulator")
 
 with st.expander("How to use this tool", expanded=False):
     st.markdown(
@@ -97,13 +125,11 @@ with st.expander("How to use this tool", expanded=False):
 - **C** is the concentration corresponding to 50% of the response (**EC₅₀**)  
 - **D** is the upper asymptote  
 
-
 **Edge cases**
 
 These plots show all the edge-case combinations of parameters **A**, **B**, **C**, and **D**.  
 Each panel represents a minimum/maximum setting of those parameters so users can see how extreme
 values change the shape and behavior of the response curve.  
-
 
 **Add curve**
 
@@ -111,7 +137,6 @@ Enter a name for the base curve. Once submitted, it will be saved and displayed 
 at the bottom-left.
 """
     )
-
 
 # ======= Session State / Defaults =======
 DEFAULTS = {
@@ -141,19 +166,16 @@ st.session_state.setdefault("apply_rec_factor", False)
 st.session_state.setdefault("rec_factor_value", None)
 st.session_state.setdefault("rec_df", None)
 
-# ---- Apply any pending recommended factor BEFORE widgets are created ----
+# Apply any pending recommended factor BEFORE widgets are created
 if st.session_state.get("apply_rec_factor", False):
     rec_val = st.session_state.get("rec_factor_value", None)
     if rec_val is not None:
-        # These keys back widgets, so only touch them here at the top
         st.session_state["even_dil_factor"] = float(rec_val)
         st.session_state["dilution_str"] = ""  # ensure even factor is used
     st.session_state["apply_rec_factor"] = False
 
-# ======= Tunable region thresholds for the recommender =======
-# These were originally for t-normalization; we now use true logistic
-# boundaries at ~10% and ~90% of the dynamic range between D and A.
-LINEAR_LOW, LINEAR_HIGH = 0.2, 0.8      # kept for documentation only
+# Tunable region thresholds used conceptually
+LINEAR_LOW, LINEAR_HIGH = 0.2, 0.8
 LOWER_ANCHOR_MAX = 0.10
 UPPER_ANCHOR_MIN = 0.90
 
@@ -217,7 +239,7 @@ def _lock_curve(label, a, b, c, d, rp=None, grid=None):
         dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
     )
 
-    # Save the 8-point coordinates (log10 and linear conc), and the y at those points
+    # Save the 8-point coordinates and y at those points
     conc_sparse = (10 ** x_sparse_locked).astype(float)
     y_sparse_locked = dp.compute_curve(a, b, c_eff, d, x_sparse_locked)
 
@@ -225,15 +247,11 @@ def _lock_curve(label, a, b, c, d, rp=None, grid=None):
         "label": label,
         "a": float(a), "b": float(b), "c": float(c_eff), "d": float(d),
         "rp": 1.0 if rp in (None, 0) else float(rp),
-
-        # Persist the dilution grid used at lock time
         "grid": {
             "top_conc": float(top_conc),
             "even_factor": float(even_factor),
             "custom_factors": list(custom_factors),
         },
-
-        # Persist the 8 locked points
         "x_log10_sparse": [float(v) for v in x_sparse_locked],
         "conc_sparse": [float(v) for v in conc_sparse],
         "y_sparse": [float(v) for v in y_sparse_locked],
@@ -241,27 +259,16 @@ def _lock_curve(label, a, b, c, d, rp=None, grid=None):
     st.session_state["curves"].append(entry)
 
 # ======= Recommender internals (from parameter ranges) =======
-
 def _four_pl_logistic(x_log10, a, b, c, d):
-    """4PL in log10(x) space (same form as dp.compute_curve)."""
     return d + (a - d) / (1 + 10 ** (b * (x_log10 - np.log10(c))))
 
 def _region_bounds_4pl(a, b, c, d, frac_low=0.1, frac_high=0.9):
-    """
-    Solve for log10(x) where the 4PL reaches given fractions of its dynamic range.
-
-    frac_low / frac_high are in [0,1] and refer to
-        y = d + frac * (a - d).
-    """
     denom = (a - d)
     if np.allclose(denom, 0.0):
-        # Degenerate: no usable dynamic range
         return -np.inf, np.inf
 
     def solve(frac):
-        y = d + frac * denom  # target y
-        # From 4PL inversion:
-        # 10^(b*(x - log10(c))) = (a - y) / (y - d)
+        y = d + frac * denom
         num = (a - y)
         den = (y - d)
         if np.allclose(den, 0.0):
@@ -273,46 +280,18 @@ def _region_bounds_4pl(a, b, c, d, frac_low=0.1, frac_high=0.9):
 
     x_low = solve(frac_low)
     x_high = solve(frac_high)
-
-    # If inversion fails, fall back to very wide bounds
     if np.isnan(x_low):
         x_low = -np.inf
     if np.isnan(x_high):
         x_high = np.inf
-
     return x_low, x_high
 
 def _score_pattern(n_bottom, n_linear, n_top, target=(2, 3, 2)):
-    """
-    Squared-error score to the ideal pattern (bottom, linear, top) = (2,3,2).
-    """
     tb, tl, tt = target
-    return (
-        (n_bottom - tb) ** 2 +
-        (n_linear - tl) ** 2 +
-        (n_top    - tt) ** 2
-    )
+    return (n_bottom - tb) ** 2 + (n_linear - tl) ** 2 + (n_top - tt) ** 2
 
 @st.cache_data(show_spinner=False)
 def _evaluate_factor(factor, top, A, B, C, D, rps_list, combos16=None):
-    """
-    Evaluate a single even dilution factor using the (2,3,2) squared-error pattern.
-
-    For each candidate factor:
-      - Build 8 log10-concentration points.
-      - For each (A,B,C,D) combo and each RP:
-          * Compute the 4PL curve.
-          * Find x where the curve is at 10% and 90% of its dynamic range.
-          * Count points in: bottom (below 10%), linear (10–90%), top (above 90%).
-          * Compute J = (bottom-2)^2 + (linear-3)^2 + (top-2)^2.
-      - Use the *worst-case* J over all combos and RPs as the factor's score.
-
-    Returns:
-      - worst_lower, worst_linear, worst_upper: counts at the worst-case pattern
-      - score: worst-case squared error J
-      - meets_min / meets_preferred: flags derived from counts (for UI sorting)
-    """
-    # 8 log-spaced x-points for this factor
     x_points = dp.generate_log_conc(
         top_conc=top, dil_factor=factor, n_points=8, dense=False
     )
@@ -322,8 +301,6 @@ def _evaluate_factor(factor, top, A, B, C, D, rps_list, combos16=None):
         for rp in (rps_list or [1.0]):
             c_eff = c_ / rp
             y = dp.compute_curve(a_, b_, c_eff, d_, x_points)
-
-            # region boundaries in log10 space, based on 10% and 90% of (A-D)
             x_low, x_high = _region_bounds_4pl(a_, b_, c_eff, d_)
 
             n_bottom = int(np.sum(x_points < x_low))
@@ -340,7 +317,6 @@ def _evaluate_factor(factor, top, A, B, C, D, rps_list, combos16=None):
                 "score": J,
             })
 
-        # worst case = largest pattern error
         worst = max(rows, key=lambda r: r["score"])
         return rows, worst
 
@@ -358,28 +334,22 @@ def _evaluate_factor(factor, top, A, B, C, D, rps_list, combos16=None):
             if worst_overall is None or worst["score"] > worst_overall["score"]:
                 worst_overall = worst
 
-    # Unpack worst-case counts & error
     wb = int(worst_overall["bottom"])
     wl = int(worst_overall["linear"])
     wt = int(worst_overall["top"])
     score = float(worst_overall["score"])
 
-    # Flags used just for UI convenience (can be tuned)
     meets_min = (wl >= 2 and wb >= 1 and wt >= 1)
     meets_preferred = (wl >= 3 and wb >= 2 and wt >= 2)
 
     return {
         "factor": float(factor),
-
-        # For the table + sorting
         "worst_lower": wb,
         "worst_linear": wl,
         "worst_upper": wt,
-        "score": score,                # squared error to (2,3,2)
-
+        "score": score,
         "meets_min": bool(meets_min),
         "meets_preferred": bool(meets_preferred),
-
         "detail": per_combo,
     }
 
@@ -393,15 +363,6 @@ def suggest_factor_from_ranges(
     rps_list,
     n_candidates=80,
 ):
-    """
-    Use the current A,B,C,D ranges to suggest a single even dilution factor.
-
-    - Builds all 16 min/max combinations
-    - Tests log-spaced factors in [1.2, 10]
-    - Picks the best factor based on:
-        meets_min, meets_preferred, *smallest* score (pattern error),
-        then smaller factor.
-    """
     choices = [(a_min, a_max), (b_min, b_max), (c_min, c_max), (d_min, d_max)]
     combos16 = list(itertools.product(*choices))
 
@@ -419,16 +380,15 @@ def suggest_factor_from_ranges(
         res = _evaluate_factor(
             factor=f,
             top=top_conc,
-            A=0.0, B=0.0, C=1.0, D=0.0,  # ignored when combos16 is used
+            A=0.0, B=0.0, C=1.0, D=0.0,
             rps_list=rps_list,
             combos16=combos16,
         )
-        # We want: meets_min=True, meets_preferred=True, smallest score, smallest factor
         key = (
             res["meets_min"],
             res["meets_preferred"],
-            -res["score"],   # smaller score -> larger -score
-            -res["factor"],  # smaller factor -> larger -factor
+            -res["score"],
+            -res["factor"],
         )
         if best is None or key > best_key:
             best = res
@@ -441,23 +401,20 @@ left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 
 with left_panel:
     st.subheader("Dilution series")
-    
-
 
     with st.expander("What does 'Dilution series' mean?", expanded=False):
         st.markdown(
-                "The **dilution factor** is how much each step is diluted from the previous one, "
-                "creating a series of decreasing doses for the curve. For example, a factor of 3 "
-                "means each well is 1/3 of the concentration of the prior well."
+            "The **dilution factor** is how much each step is diluted from the previous one, "
+            "creating a series of decreasing doses for the curve. For example, a factor of 3 "
+            "means each well is 1/3 of the concentration of the prior well."
         )
-        
 
     st.number_input(
-    "Top concentration",
-    min_value=1e-12, max_value=1e12,
-    step=1.0, format="%.6g", key="top_conc",
-    help="The top concentration is the highest dose you start with, setting the upper limit of the dose–response curve."
-)
+        "Top concentration",
+        min_value=1e-12, max_value=1e12,
+        step=1.0, format="%.6g", key="top_conc",
+        help="The top concentration is the highest dose you start with, setting the upper limit of the dose–response curve."
+    )
 
     st.number_input(
         "Even dilution factor (applied 7×)",
@@ -465,6 +422,7 @@ with left_panel:
         step=0.01, format="%.6g", key="even_dil_factor",
         help="Example: 2 halves each step; √10≈3.162 is common."
     )
+
     st.text_input(
         "Custom 7 dilution factors (override even factor if exactly 7 numbers)",
         key="dilution_str",
@@ -478,14 +436,11 @@ with left_panel:
         st.caption(f"Using custom factors: {custom_factors}")
     else:
         st.warning(
-            f"Provide exactly 7 factors (got {len(custom_factors)}). "
-            "Falling back to even factor."
+            f"Provide exactly 7 factors (got {len(custom_factors)}). Falling back to even factor."
         )
         custom_factors = []
 
-
-
-# Graph header and placeholder begin in Row 1 and continue in Row 2
+# Graph header placeholder begins in Row 1 and continues in Row 2
 with graph_col:
     plot_placeholder = st.empty()
 
@@ -503,17 +458,17 @@ with left_panel:
             """
         )
 
+    # Ensure defaults exist
     defaults = {
-            "a_min": 0.8, "a_max": 1.2,
-            "b_min": -2.0, "b_max": -0.5,
-            "c_min": 0.1, "c_max": 3.0,
-            "d_min": 0.0, "d_max": 0.2,
+        "a_min": 0.8, "a_max": 1.2,
+        "b_min": -2.0, "b_max": -0.5,
+        "c_min": 0.1, "c_max": 3.0,
+        "d_min": 0.0, "d_max": 0.2,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
-        
     colA, colMin, colMax = st.columns([0.6, 1, 1])
     with colA:
         st.markdown("**Parameter**")
@@ -527,42 +482,51 @@ with left_panel:
         with cA:
             st.markdown(param_label)
         with cMin:
-            st.number_input(
-                "", key=k_min, label_visibility="collapsed", **min_cfg
-            )
+            st.number_input("", key=k_min, label_visibility="collapsed", **min_cfg)
         with cMax:
-            st.number_input(
-                 "", key=k_max, label_visibility="collapsed", **max_cfg
-            )
+            st.number_input("", key=k_max, label_visibility="collapsed", **max_cfg)
+
+    def auto_cfg(k_min, k_max, base_min, base_max, step=0.01, fmt=None, pad=0.25):
+        """Expand bounds dynamically around current values to avoid exceeding max/min errors."""
+        vmin = float(st.session_state.get(k_min, base_min))
+        vmax = float(st.session_state.get(k_max, base_max))
+        lo = min(base_min, vmin)
+        hi = max(base_max, vmax)
+        span = max(1e-12, hi - lo)
+        lo -= pad * span
+        hi += pad * span
+        cfg = {"min_value": lo, "max_value": hi, "step": step}
+        if fmt:
+            cfg["format"] = fmt
+        return cfg
 
     # A
     row("A", "a_min", "a_max",
-        {"min_value": 0.0, "max_value": 2.0, "step": 0.01},
-        {"min_value": 0.0, "max_value": 2.0, "step": 0.01})
+        auto_cfg("a_min","a_max", 0.0, 2.0, step=0.01),
+        auto_cfg("a_min","a_max", 0.0, 2.0, step=0.01))
 
     # B
     row("B", "b_min", "b_max",
-        {"min_value": -10.0, "max_value": 10.0, "step": 0.01},
-        {"min_value": -10.0, "max_value": 10.0, "step": 0.01})
+        auto_cfg("b_min","b_max", -10.0, 10.0, step=0.01),
+        auto_cfg("b_min","b_max", -10.0, 10.0, step=0.01))
 
     # C
     row("C", "c_min", "c_max",
-        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"},
-        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"})
+        auto_cfg("c_min","c_max", 1e-6, 1e6, step=0.01, fmt="%.6g"),
+        auto_cfg("c_min","c_max", 1e-6, 1e6, step=0.01, fmt="%.6g"))
 
-     # D
+    # D (flexible upper bound so values like 1.02 won't error out)
     row("D", "d_min", "d_max",
-        {"min_value": 0.0, "max_value": 1.0, "step": 0.01},
-        {"min_value": 0.0, "max_value": 1.0, "step": 0.01})
+        auto_cfg("d_min","d_max", 0.0, 1.0, step=0.01),
+        auto_cfg("d_min","d_max", 0.0, 1.0, step=0.01))
 
-        # ---- Relative potencies (applied to c only) ----
+    # Relative potencies (applied to c only)
     st.text_input(
-            "Relative potencies (comma/space separated)",
-            key="rps_str",
-            placeholder="e.g., 0.25, 0.5  1, 1.5, 2"
-        )
+        "Relative potencies (comma/space separated)",
+        key="rps_str",
+        placeholder="e.g., 0.25, 0.5  1, 1.5, 2"
+    )
     user_rps = _parse_rps(st.session_state["rps_str"])
-    # Default to 40%, reference, 160% if empty
     if not user_rps:
         rps = [0.4, 1.0, 1.6]
         st.caption("Using default RP values: 0.4 (40%), 1.0 (reference), 1.6 (160%)")
@@ -576,7 +540,6 @@ b_min, b_max = float(st.session_state["b_min"]), float(st.session_state["b_max"]
 c_min, c_max = float(st.session_state["c_min"]), float(st.session_state["c_max"])
 d_min, d_max = float(st.session_state["d_min"]), float(st.session_state["d_max"])
 
-# Averages for main graph
 a = (a_min + a_max) / 2.0
 b = (b_min + b_max) / 2.0
 c = (c_min + c_max) / 2.0
@@ -601,11 +564,10 @@ x_dense_live = dp.generate_log_conc(
     dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
 )
 
-# ======= Color map for RP curves (consistent across main & edge plots) =======
-palette = qualitative.Plotly  # length >= 10
+# ======= Color map for RP curves =======
+palette = qualitative.Plotly
 rp_sorted = sorted(set(rps))
 rp_color_map = {}
-# Reserve index 0 for RP=1.0 "Reference"
 color_cursor = 1
 if 1.0 in rp_sorted:
     rp_color_map[1.0] = palette[0]
@@ -690,25 +652,21 @@ for idx, cv in enumerate(st.session_state["curves"]):
         )
 
 fig.update_layout(
-    title = "Dose-Response Curve",
+    title="Dose-Response Curve",
     xaxis_title="Log Concentration",
     yaxis_title="Response",
     legend_title=None,
     margin=dict(l=10, r=10, t=40, b=10),
 )
 
-# Render main graph & controls
 with graph_col:
     plot_placeholder = st.empty()
-
-    # Main graph
     plot_placeholder.plotly_chart(
         fig,
         config={"responsive": True, "displayModeBar": True},
         use_container_width=True,
     )
 
-    # Curve labeling & buttons
     default_label = f"Curve {st.session_state['next_label_idx']}"
     label = st.text_input(
         "Label for base curve",
@@ -740,12 +698,10 @@ with graph_col:
             st.info("Cleared all saved curves.")
             _rerun()
 
-    # --- Recommender lives under the graph, in this same column ---
     st.markdown("---")
     st.markdown("### Dilution scheme recommender (from A, B, C, D ranges)")
 
     with st.expander("How this suggestion works", expanded=False):
-
         st.markdown(
             """
     This tool recommends **even dilution factor(s)** using the current **A, B, C, D**
@@ -756,38 +712,27 @@ with graph_col:
     1. Builds an 8-point dilution series in log10(concentration) space.  
     2. Evaluates **all 16 min/max combinations** of (A, B, C, D).  
     3. For each combination & RP, computes the 4-parameter logistic curve and finds the
-    log10-concentrations where the curve reaches **10%** and **90%** of its dynamic range
-    between the lower (D) and upper (A) asymptotes.  
+       log10-concentrations where the curve reaches **10%** and **90%** of its dynamic range
+       between the lower (D) and upper (A) asymptotes.  
     4. Classifies each dilution point as:  
-    - **Bottom anchor**: below the 10% point  
-    - **Linear region**: between 10% and 90%  
-    - **Top anchor**: above the 90% point  
+       - **Bottom anchor**: below the 10% point  
+       - **Linear region**: between 10% and 90%  
+       - **Top anchor**: above the 90% point  
 
-    For every curve/RP, it then compares the pattern  
-    **(bottom, linear, top)** to the target **(2, 3, 2)** using:
-    """
+    For a given factor, we use the **worst-case** pattern error across all 16 corners and all RPs:
+            """
         )
-
         st.latex(r"""
             J = (n_{\text{bottom}} - 2)^2
             + (n_{\text{linear}} - 3)^2
             + (n_{\text{top}} - 2)^2
         """)
-
         st.markdown(
             """
-    For a given dilution factor, we look at the **worst-case** \(J\) across all 16 parameter
-    corners and all RPs. Factors with smaller worst-case \(J\) are better (they are closest
-    to the 2–3–2 pattern in every case).
-
-    The table below shows, for each candidate factor:
-
-    - The **worst-case counts** (bottom, linear, top)  
-    - The corresponding score \(J\)  
-    - Flags indicating whether it meets simple minimum / preferred coverage rules.
-    """
+    Smaller worst-case \(J\) is better. The table shows worst-case counts, the score \(J\),
+    and flags for simple coverage rules.
+            """
         )
-
 
         n_cand = st.slider(
             "Search resolution (# of candidate factors between 1.2 and 10, log-spaced)",
@@ -799,13 +744,11 @@ with graph_col:
             key="n_cand_recommender",
         )
 
-    # Run recommender on click, based on A,B,C,D rangess
     if st.button(
         "Recommend even dilution factors from A,B,C,D ranges",
         type="primary",
         key="btn_recommend_factors",
     ):
-        # Rebuild ranges in case user just changed them
         a_min_local, a_max_local = float(st.session_state["a_min"]), float(st.session_state["a_max"])
         b_min_local, b_max_local = float(st.session_state["b_min"]), float(st.session_state["b_max"])
         c_min_local, c_max_local = float(st.session_state["c_min"]), float(st.session_state["c_max"])
@@ -831,7 +774,7 @@ with graph_col:
             res = _evaluate_factor(
                 factor=f,
                 top=top_conc,
-                A=0.0, B=0.0, C=1.0, D=0.0,  # ignored because combos16 is used
+                A=0.0, B=0.0, C=1.0, D=0.0,
                 rps_list=rp_sorted,
                 combos16=combos16,
             )
@@ -852,8 +795,6 @@ with graph_col:
                     for r in rows
                 ]
             )
-            # Ranking: prefer factors that meet the minimum rules and
-            # have the smallest pattern-error score, then smaller factor.
             rec_df = rec_df.sort_values(
                 by=["meets_min", "meets_preferred", "score", "factor"],
                 ascending=[False, False, True, True],
@@ -882,7 +823,6 @@ if rec_df is not None and not rec_df.empty:
         key="btn_dl_rec_csv",
     )
 
-    # Select + apply a recommended factor
     top_20 = rec_df.head(20)["factor"].tolist()
     st.markdown("#### Load a recommended factor into the current dilution settings")
 
@@ -902,14 +842,11 @@ if rec_df is not None and not rec_df.empty:
         _rerun()
 else:
     st.info(
-        "Click **Recommend even dilution factors from A,B,C,D ranges** to generate "
-        "a ranked table of candidate dilution factors."
+        "Click **Recommend even dilution factors from A,B,C,D ranges** to generate a ranked table of candidate dilution factors."
     )
 
-# ======= RULE =======
-st.markdown("---")
-
 # ======= 16 Edge-case subplots =======
+st.markdown("---")
 st.markdown("### Edge cases: all min/max combinations of A, B, C, D")
 with st.expander("What are Edge cases?", expanded=False):
     st.markdown(
@@ -917,8 +854,6 @@ with st.expander("What are Edge cases?", expanded=False):
         "Each panel represents a minimum/maximum setting of those parameters so users can see how "
         "extreme values change the shape and behavior of the response curve."
     )
-
-
 
 x_sparse_edge = dp.generate_log_conc(
     top_conc=top_conc, dil_factor=even_factor, n_points=8, dense=False,
@@ -929,7 +864,6 @@ x_dense_edge = dp.generate_log_conc(
     dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
 )
 
-# Refresh min/max in case user changed them
 a_min, a_max = float(st.session_state["a_min"]), float(st.session_state["a_max"])
 b_min, b_max = float(st.session_state["b_min"]), float(st.session_state["b_max"])
 c_min, c_max = float(st.session_state["c_min"]), float(st.session_state["c_max"])
@@ -992,17 +926,12 @@ edge_fig.add_annotation(
     font=dict(size=14),
 )
 
-# ----- 4PL edge-case hover badges: stable circle+i with hover text -----
-
 edge_fig.update_layout(hovermode="closest")
-
 
 for t in list(edge_fig.data):
     mode = getattr(t, "mode", "") or ""
     if "text" not in mode:
         t.update(hoverinfo="skip", hovertemplate=None)
-
-
 
 tooltip_texts_4pl = [
     [
@@ -1030,27 +959,22 @@ tooltip_texts_4pl = [
         "Steep slope, weak drug, high top, high baseline — steep curve but requires very high dose",
     ],
 ]
-# ----- 4PL edge-case hover badges：
 
 N_COLS = 4
 x_min = float(np.min(x_dense_edge))
 x_max = float(np.max(x_dense_edge))
-x_pad = 0.02 * (x_max - x_min)  
+x_pad = 0.02 * (x_max - x_min)
 
 for idx, (aa, bb, cc, dd) in enumerate(combos, start=1):
     row0 = (idx - 1) // N_COLS
     col0 = (idx - 1) %  N_COLS
     r, c = row0 + 1, col0 + 1
 
-    # ---- ★ y=0 ----
     y_icon = 0.0
-
-    # ---- ★ x  ----
     x_icon = x_max - x_pad
 
     tip = tooltip_texts_4pl[row0][col0]
 
-    # ---- hover----
     edge_fig.add_scatter(
         x=[x_icon], y=[y_icon],
         mode="markers",
@@ -1067,7 +991,6 @@ for idx, (aa, bb, cc, dd) in enumerate(combos, start=1):
         row=r, col=c,
     )
 
-    # ---- i  ----
     edge_fig.add_scatter(
         x=[x_icon], y=[y_icon],
         mode="text",
@@ -1078,21 +1001,11 @@ for idx, (aa, bb, cc, dd) in enumerate(combos, start=1):
         row=r, col=c,
     )
 
-
-#  hover 
 edge_fig.update_layout(hoverlabel=dict(bgcolor="white"))
-
-
 st.plotly_chart(edge_fig, config={"responsive": True}, use_container_width=True)
 
-
-
-
-
-# ======= RULE =======
-st.markdown("---")
-
 # ======= Row 3: Saved curves (left) | Dilution preview (right) =======
+st.markdown("---")
 col_saved, col_preview = st.columns([1.15, 1.85], gap="large")
 
 with col_saved:

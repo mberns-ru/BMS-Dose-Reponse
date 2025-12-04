@@ -55,7 +55,7 @@ def axis_domain_ref(ax: str, i: int) -> str:
 # ===================== Page config (must be first Streamlit call) ===========
 
 st.set_page_config(
-    page_title="2PL Quantification Tool",
+    page_title="2-Parameter Logistic (2PL) Simulator",
     layout="wide",
 )
 
@@ -174,7 +174,7 @@ def compute_curve_2pl(b, c, x_log10):
 
 # ===================== Title & short description ============================
 
-st.title("2PL Quantification Tool")
+st.title("2-Parameter Logistic (2PL) Simulator")
 
 st.caption(
     "Parallel-curve **two-parameter logistic** model with fixed lower "

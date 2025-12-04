@@ -85,12 +85,11 @@ except Exception:
 # ===================== Page config =========================================
 
 st.set_page_config(
-    page_title="Linear Quantification Tool",
+    page_title="Linear Simulator",
     layout="wide",
 )
 
-st.title("Linear Quantification Tool")
-
+st.title("Linear Simulator")
 with st.expander("How to use this tool", expanded=False):
     st.markdown(
         r"""
