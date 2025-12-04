@@ -148,10 +148,14 @@ def read_uploaded_file(uploaded_file):
         else:
             df = pd.read_csv(uploaded_file)
         numeric_cols = df.select_dtypes(include='number').columns
+        numeric_cols = df.select_dtypes(include='number').columns.tolist()
+        for c in numeric_cols:
+            df[c] = pd.to_numeric(df[c], errors='coerce')
         if 'sample' in df.columns:
-            return df[['sample'] + numeric_cols.tolist()]
+            return df[['sample'] + numeric_cols]
         else:
             return df[numeric_cols]
+
     except Exception as e:
         st.error(f"Error reading file: {e}")
         return None
