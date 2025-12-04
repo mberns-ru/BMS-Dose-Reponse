@@ -155,7 +155,7 @@ with st.expander("How to use this tool", expanded=False):
     # --- Edge-case envelope explanation ---
     st.markdown(
         r"""
-### Edge-case envelope
+### Edge cases
 
 To show how sensitive the dose–response curve is to parameter uncertainty, the tool plots all  
 **16 combinations** of minimum and maximum values of the four parameters:
@@ -899,12 +899,6 @@ else:
 # ======= 16 Edge-case subplots =======
 st.markdown("---")
 st.markdown("### Edge cases: all min/max combinations of A, B, C, D")
-with st.expander("What are Edge cases?", expanded=False):
-    st.markdown(
-        "These plots show all the edge-case combinations of parameters **A, B, C, D, and/or E**. "
-        "Each panel represents a minimum/maximum setting of those parameters so users can see how "
-        "extreme values change the shape and behavior of the response curve."
-    )
 
 x_sparse_edge = dp.generate_log_conc(
     top_conc=top_conc, dil_factor=even_factor, n_points=8, dense=False,

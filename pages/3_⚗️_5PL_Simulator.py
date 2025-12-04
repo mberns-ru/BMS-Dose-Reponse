@@ -11,46 +11,157 @@ from PIL import Image
 import streamlit as st
 
 import dose_response as dp
+from utils.param_loader import load_param_bounds
 
-# ===================== Auto-populate 5PL parameters from Upload Page =====================
-params_df = st.session_state.get("model_input", None)
-selected_model = st.session_state.get("selected_model", None)
 
-# Default values for 5PL
-A_default, B_default, C_default, D_default, E_default = 0.0, 100.0, 50.0, 1.0, 1.0
+# ===================== Helpers to read bounds from Upload page =====================
 
-if params_df is not None and selected_model == "5PL":
-    st.info("Using parameter ranges from Upload Page for 5PL")
-    st.dataframe(params_df)
+def _normalize_bounds_5pl(bounds: dict | None):
+    """
+    Normalize a bounds dict into:
+        {"a": (lo, hi), "b": ..., "c": ..., "d": ..., "e": ...?}
 
-    numeric_cols = [c for c in params_df.columns if c != "sample"]
+    Requires at least A–D; E is optional.
+    """
+    if not isinstance(bounds, dict):
+        return None
 
-    if 'Average' in params_df['sample'].values:
-        row = params_df[params_df['sample'] == 'Average']
-        A = row[numeric_cols[0]].values[0] if len(numeric_cols) > 0 else A_default
-        B = row[numeric_cols[1]].values[0] if len(numeric_cols) > 1 else B_default
-        C = row[numeric_cols[2]].values[0] if len(numeric_cols) > 2 else C_default
-        D = row[numeric_cols[3]].values[0] if len(numeric_cols) > 3 else D_default
-        E = row[numeric_cols[4]].values[0] if len(numeric_cols) > 4 else E_default
+    out: dict[str, tuple[float, float]] = {}
+    for k in ["a", "b", "c", "d", "e"]:
+        pair = bounds.get(k) or bounds.get(k.upper())
+        if not pair:
+            continue
+        if len(pair) != 2:
+            return None
+        lo, hi = map(float, pair)
+        if lo > hi:
+            lo, hi = hi, lo
+        out[k] = (lo, hi)
 
-    elif 'Min' in params_df['sample'].values and 'Max' in params_df['sample'].values:
-        row_min = params_df[params_df['sample'] == 'Min']
-        row_max = params_df[params_df['sample'] == 'Max']
-        # Midpoint of min/max for each numeric column
-        A = (row_min[numeric_cols[0]].values[0] + row_max[numeric_cols[0]].values[0]) / 2 if len(numeric_cols) > 0 else A_default
-        B = (row_min[numeric_cols[1]].values[0] + row_max[numeric_cols[1]].values[0]) / 2 if len(numeric_cols) > 1 else B_default
-        C = (row_min[numeric_cols[2]].values[0] + row_max[numeric_cols[2]].values[0]) / 2 if len(numeric_cols) > 2 else C_default
-        D = (row_min[numeric_cols[3]].values[0] + row_max[numeric_cols[3]].values[0]) / 2 if len(numeric_cols) > 3 else D_default
-        E = (row_min[numeric_cols[4]].values[0] + row_max[numeric_cols[4]].values[0]) / 2 if len(numeric_cols) > 4 else E_default
+    # Require at least A–D
+    if not {"a", "b", "c", "d"}.issubset(out.keys()):
+        return None
+    return out
 
+
+def _bounds_from_params_df_5pl(df: pd.DataFrame | None):
+    """
+    Infer bounds from st.session_state['model_input'], which comes from the Upload page.
+
+    Uses Min/Max rows if present; otherwise min/max of numeric columns.
+    A–D are required; E is optional (if a 5th numeric column exists).
+    """
+    if df is None or not isinstance(df, pd.DataFrame):
+        return None
+
+    try:
+        if "sample" in df.columns and {"Min", "Max"}.issubset(set(df["sample"])):
+            num_cols = [c for c in df.columns if c != "sample"]
+            if len(num_cols) < 4:
+                return None
+
+            row_min = df.loc[df["sample"] == "Min", num_cols].iloc[0]
+            row_max = df.loc[df["sample"] == "Max", num_cols].iloc[0]
+
+            out = {
+                "a": (float(row_min.iloc[0]), float(row_max.iloc[0])),
+                "b": (float(row_min.iloc[1]), float(row_max.iloc[1])),
+                "c": (float(row_min.iloc[2]), float(row_max.iloc[2])),
+                "d": (float(row_min.iloc[3]), float(row_max.iloc[3])),
+            }
+            if len(num_cols) >= 5:
+                out["e"] = (float(row_min.iloc[4]), float(row_max.iloc[4]))
+            return out
+
+        # Fallback: min/max of first 4–5 numeric columns
+        num_cols = [
+            c
+            for c in df.columns
+            if c != "sample" and np.issubdtype(df[c].dtype, np.number)
+        ]
+        if len(num_cols) < 4:
+            return None
+
+        mins = [float(df[c].min()) for c in num_cols[:5]]
+        maxs = [float(df[c].max()) for c in num_cols[:5]]
+
+        out = {
+            "a": (mins[0], maxs[0]),
+            "b": (mins[1], maxs[1]),
+            "c": (mins[2], maxs[2]),
+            "d": (mins[3], maxs[3]),
+        }
+        if len(num_cols) >= 5:
+            out["e"] = (mins[4], maxs[4])
+        return out
+    except Exception:
+        return None
+
+
+def _defaults_5pl():
+    return {
+        "a": (0.80, 1.20),
+        "b": (-2.00, -0.50),
+        "c": (0.10, 3.00),
+        "d": (0.00, 0.20),
+        "e": (0.80, 1.20),
+    }
+
+
+# --- Read ranges + detect whether they came from the Upload page (like 4PL) ---
+
+_raw_bounds = load_param_bounds()
+_model_input = st.session_state.get("model_input")
+
+# Treat any usable bounds/model_input as "from upload"
+_FROM_UPLOAD_5pl = (_raw_bounds is not None) or (
+    _model_input is not None and not getattr(_model_input, "empty", False)
+)
+
+_bounds_5pl = _normalize_bounds_5pl(_raw_bounds)
+if _bounds_5pl is None:
+    _bounds_5pl = _normalize_bounds_5pl(_bounds_from_params_df_5pl(_model_input))
+if _bounds_5pl is None:
+    _bounds_5pl = _defaults_5pl()
+
+# Allow re-prefill when bounds change
+if st.session_state.get("_last_bounds_5pl") != _bounds_5pl:
+    st.session_state.pop("prefilled_5pl", None)
+    st.session_state["_last_bounds_5pl"] = _bounds_5pl
+
+# Prefill only once so user edits don’t get stomped
+if "prefilled_5pl" not in st.session_state:
+    defaults_all = _defaults_5pl()
+    mapping = {
+        "a": ("a_min_5pl", "a_max_5pl"),
+        "b": ("b_min_5pl", "b_max_5pl"),
+        "c": ("c_min_5pl", "c_max_5pl"),
+        "d": ("d_min_5pl", "d_max_5pl"),
+        "e": ("e_min_5pl", "e_max_5pl"),
+    }
+    for k, (k_min, k_max) in mapping.items():
+        lo, hi = _bounds_5pl.get(k, defaults_all[k])
+        st.session_state[k_min] = lo
+        st.session_state[k_max] = hi
+
+    st.session_state["prefilled_5pl"] = True
+
+    # Build the "Loaded ranges → ..." message, but only if Upload was used
+    if _FROM_UPLOAD_5pl:
+        st.session_state["_5pl_loaded_ranges_msg"] = (
+            f"Loaded ranges → A({st.session_state['a_min_5pl']},"
+            f"{st.session_state['a_max_5pl']}), "
+            f"B({st.session_state['b_min_5pl']},"
+            f"{st.session_state['b_max_5pl']}), "
+            f"C({st.session_state['c_min_5pl']},"
+            f"{st.session_state['c_max_5pl']}), "
+            f"D({st.session_state['d_min_5pl']},"
+            f"{st.session_state['d_max_5pl']}), "
+            f"E({st.session_state['e_min_5pl']},"
+            f"{st.session_state['e_max_5pl']})"
+        )
     else:
-        st.warning("Uploaded data format not recognized. Using default 5PL values.")
-        A, B, C, D, E = A_default, B_default, C_default, D_default, E_default
-
-else:
-    # No uploaded data or model not selected -> use defaults
-    A, B, C, D, E = A_default, B_default, C_default, D_default, E_default
-
+        st.session_state.pop("_5pl_loaded_ranges_msg", None)
 
 
 # ===================== Page config =====================
@@ -95,37 +206,65 @@ except Exception:
 st.title("5-Parameter Logistic (5PL) Simulator")
 
 with st.expander("How to use this tool", expanded=False):
+
+    # --- Parameters (left) + equation (right), matching 4PL layout ---
+    params_col, eqn_col = st.columns([1.7, 1.3])
+
+    with params_col:
+        st.markdown(
+            r"""
+### **Parameters**
+
+- **A** — *Lower asymptote*  
+  The minimum response value the curve approaches at very low concentrations.
+
+- **B** — *Slope / Hill slope*  
+  Controls the steepness of the curve; higher magnitude = sharper transition.
+
+- **C** — *EC₅₀ (Midpoint)*  
+  The concentration at which the response is halfway between A and D.
+
+- **D** — *Upper asymptote*  
+  The maximum response the curve approaches at high concentrations.
+
+- **E** — *Asymmetry parameter*  
+  Controls how symmetric vs. skewed the curve is around the midpoint.
+            """
+        )
+
+    with eqn_col:
+        st.markdown("### **Equation**")
+        st.latex(
+            r"""
+            y = D + \frac{A - D}
+                     {\left(1 + 10^{\,B\,(\log_{10}(x) - \log_{10}(C))}\right)^{E}}
+            """
+        )
+
+    # --- Edge-case envelope explanation ---
     st.markdown(
         r"""
-**Parameters**
+### Edge cases
 
-- **A** is the lower asymptote  
-- **B** indicates steepness (proportional to the slope of the curve at the mid-point)  
-- **C** is the concentration corresponding to 50% of the response (**EC₅₀**)  
-- **D** is the upper asymptote  
-- **E** is the asymmetry parameter  
+To show how sensitive the dose–response curve is to parameter uncertainty, the tool plots all  
+**32 combinations** of minimum and maximum values of the five parameters:
 
-In log₁₀ concentration space, the 5-parameter logistic (5PL) used here is:
+$$
+(A_{\min/\max},\ B_{\min/\max},\ C_{\min/\max},\ D_{\min/\max},\ E_{\min/\max})
+$$
 
-\[
-y = D + \frac{A - D}{\left(1 + 10^{\,B\,(\log_{10}(x) - \log_{10}(C))}\right)^{E}}
-\]
+Each line represents one extreme configuration.  
+Together, these curves form an **edge-case envelope** showing:
 
-When \(E = 1\), this reduces to the usual 4PL.
+- The steepest and shallowest possible slopes  
+- The earliest and latest possible transitions  
+- The lowest and highest asymptotes  
+- The most symmetric and most asymmetric shapes  
 
-**Edge cases**
-
-These plots show all the edge-case combinations of parameters **A**, **B**, **C**, **D**, and **E**  
-(using min/max for each). Each panel represents a minimum/maximum setting of those
-parameters so you can see how extreme values change the shape and behavior of the response
-curve.
-
-**Add curve**
-
-Enter a name for the base curve. Once submitted, it will be saved and displayed in the curve
-list at the bottom-left (for export/record keeping in a future version).
-"""
+This helps visualize the full range of behaviors the assay could produce under uncertainty.
+        """
     )
+
 
 # ===================== Session State / Defaults =====================
 
@@ -200,10 +339,16 @@ def _five_pl_logistic(x_log10, a, b, c, d, e):
     c = float(c)
     if c <= 0:
         c = 1e-12
-    return d + (a - d) / (1.0 + np.power(10.0, b * (x_log10 - np.log10(c))))**e
+    return d + (a - d) / (1.0 + np.power(10.0, b * (x_log10 - np.log10(c)))) ** e
 
 
 def _region_bounds_5pl(a, b, c, d, e, frac_low=0.1, frac_high=0.9):
+    """
+    Solve for log10(x) where the 5PL reaches given fractions of its dynamic range.
+
+    frac_low / frac_high are in [0,1] and refer to
+        y = d + frac * (a - d).
+    """
     if e == 0:
         return -np.inf, np.inf
 
@@ -242,21 +387,23 @@ def curves_5pl_to_dataframe(curves_5pl):
     rows = []
     for cv in curves_5pl:
         grid = cv.get("grid", {})
-        rows.append({
-            "label": cv["label"],
-            "a": cv["a"],
-            "b": cv["b"],
-            "c": cv["c"],
-            "d": cv["d"],
-            "e": cv["e"],
-            "rp": cv.get("rp"),
-            "top_conc_5pl": grid.get("top_conc_5pl"),
-            "even_factor": grid.get("even_factor"),
-            "custom_factors": _list_to_str(grid.get("custom_factors", [])),
-            "x_log10_points": _list_to_str(cv.get("x_log10_sparse", [])),
-            "conc_points": _list_to_str(cv.get("conc_sparse", [])),
-            "y_points": _list_to_str(cv.get("y_sparse", [])),
-        })
+        rows.append(
+            {
+                "label": cv["label"],
+                "a": cv["a"],
+                "b": cv["b"],
+                "c": cv["c"],
+                "d": cv["d"],
+                "e": cv["e"],
+                "rp": cv.get("rp"),
+                "top_conc_5pl": grid.get("top_conc_5pl"),
+                "even_factor": grid.get("even_factor"),
+                "custom_factors": _list_to_str(grid.get("custom_factors", [])),
+                "x_log10_points": _list_to_str(cv.get("x_log10_sparse", [])),
+                "conc_points": _list_to_str(cv.get("conc_sparse", [])),
+                "y_points": _list_to_str(cv.get("y_sparse", [])),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -268,14 +415,14 @@ def _lock_curve(label, a, b, c, d, e, rp=None, grid=None):
     custom_factors = list(grid.get("custom_factors", [])) if grid else []
 
     x_sparse_locked = dp.generate_log_conc(
-        top_conc_5pl=top_conc_5pl,
+        top_conc=top_conc_5pl,
         dil_factor=even_factor,
         n_points=8,
         dense=False,
         dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
     )
 
-    conc_sparse = (10 ** x_sparse_locked).astype(float)
+    conc_sparse = (10**x_sparse_locked).astype(float)
     y_sparse_locked = _five_pl_logistic(x_sparse_locked, a, b, c_eff, d, e)
 
     entry = {
@@ -300,89 +447,30 @@ def _lock_curve(label, a, b, c, d, e, rp=None, grid=None):
 
 # ======= Recommender internals (5PL, same logic as 4PL) =======
 
-def _region_bounds_5pl(a, b, c, d, e, frac_low=0.1, frac_high=0.9):
-    """
-    Solve for log10(x) where the 5PL reaches given fractions of its dynamic range.
-
-    frac_low / frac_high are in [0,1] and refer to
-        y = d + frac * (a - d).
-
-    5PL form (in log10 x):
-        y = d + (a - d) / (1 + 10^(b (x - log10(c))))^e
-
-    Let frac = (y - d)/(a - d). Then
-
-        frac = 1 / (1 + 10^(b (x - log10(c))))^e
-        => (1/frac)^(1/e) - 1 = 10^(b (x - log10(c)))
-        => x = log10(c) + (1/b) * log10( (1/frac)^(1/e) - 1 ).
-    """
-    denom = (a - d)
-    if np.allclose(denom, 0.0):
-        # Degenerate: no usable dynamic range
-        return -np.inf, np.inf
-
-    def solve(frac):
-        if frac <= 0.0 or frac >= 1.0:
-            return np.nan
-        # analytic inversion in log10 space
-        try:
-            t = frac ** (-1.0 / e) - 1.0
-        except Exception:
-            return np.nan
-        if t <= 0 or np.isnan(t):
-            return np.nan
-        try:
-            return np.log10(c) + (np.log10(t) / b)
-        except Exception:
-            return np.nan
-
-    x_low = solve(frac_low)
-    x_high = solve(frac_high)
-
-    # If inversion fails, fall back to wide bounds
-    if np.isnan(x_low):
-        x_low = -np.inf
-    if np.isnan(x_high):
-        x_high = np.inf
-
-    # In case of inverted ordering
-    if x_low > x_high:
-        x_low, x_high = x_high, x_low
-
-    return x_low, x_high
-
-
 def _score_pattern(n_bottom, n_linear, n_top):
     """
     Asymmetric score:
 
     - Target anchors: bottom = 2, top = 2
     - Target linear: at least 3 (extra linear points are OK)
-
-    So:
-      - 2-3-2  -> score 0
-      - 2-4-2  -> score 0   (no penalty for extra linear)
-      - 3-3-2  -> large penalty (too many bottom anchors)
     """
     target_bottom = 2
     target_linear_min = 3
     target_top = 2
 
-    # Strong penalty for bottom/top deviating from 2 (either direction)
-    anchor_weight = 4.0  # tweak if you want anchors even more dominant
+    anchor_weight = 4.0
 
     bottom_dev = n_bottom - target_bottom
     top_dev = n_top - target_top
 
-    penalty_bottom = anchor_weight * (bottom_dev ** 2)
-    penalty_top = anchor_weight * (top_dev ** 2)
+    penalty_bottom = anchor_weight * (bottom_dev**2)
+    penalty_top = anchor_weight * (top_dev**2)
 
-    # Only penalize if we are SHORT on linear points (<3). Extra linear is free.
     if n_linear >= target_linear_min:
         penalty_linear = 0.0
     else:
         shortfall = target_linear_min - n_linear
-        penalty_linear = float(shortfall ** 2)
+        penalty_linear = float(shortfall**2)
 
     return penalty_bottom + penalty_linear + penalty_top
 
@@ -399,52 +487,34 @@ def _evaluate_factor_5pl(
     rps_list,
     combos16=None,
 ):
-    """
-    5PL analogue of your 4PL `_evaluate_factor`.
-
-    For each candidate factor:
-      - Build 8 log10-concentration points.
-      - For each (A,B,C,D) combo and each RP:
-          * Compute the 5PL curve (with fixed e_val).
-          * Find x where the curve is at 10% and 90% of its dynamic range.
-          * Count points in bottom / linear / top.
-          * Compute J = (bottom-2)^2 + (linear-3)^2 + (top-2)^2.
-      - Use the *worst-case* J over all combos and RPs as the factor's score.
-
-    Returns a dict in the same shape as the 4PL `_evaluate_factor`:
-      factor, worst_lower, worst_linear, worst_upper, score,
-      meets_min, meets_preferred, detail.
-    """
-    # 8 log-spaced x-points for this factor
     x_points = dp.generate_log_conc(
-        top_conc_5pl=top, dil_factor=factor, n_points=8, dense=False
+        top_conc=top, dil_factor=factor, n_points=8, dense=False
     )
 
     def eval_one(a_, b_, c_, d_):
         rows = []
         for rp in (rps_list or [1.0]):
             c_eff = c_ / rp
-            # 5PL curve in log10 space
             y = _five_pl_logistic(x_points, a_, b_, c_eff, d_, e_val)
 
-            # region boundaries in log10 space, based on 10% and 90% of dynamic range
             x_low, x_high = _region_bounds_5pl(a_, b_, c_eff, d_, e_val)
 
             n_bottom = int(np.sum(x_points < x_low))
-            n_top    = int(np.sum(x_points > x_high))
+            n_top = int(np.sum(x_points > x_high))
             n_linear = len(x_points) - n_bottom - n_top
 
             J = _score_pattern(n_bottom, n_linear, n_top)
 
-            rows.append({
-                "rp": float(rp),
-                "bottom": n_bottom,
-                "linear": n_linear,
-                "top": n_top,
-                "score": J,
-            })
+            rows.append(
+                {
+                    "rp": float(rp),
+                    "bottom": n_bottom,
+                    "linear": n_linear,
+                    "top": n_top,
+                    "score": J,
+                }
+            )
 
-        # worst case = largest pattern error
         worst = max(rows, key=lambda r: r["score"])
         return rows, worst
 
@@ -462,30 +532,22 @@ def _evaluate_factor_5pl(
             if worst_overall is None or worst["score"] > worst_overall["score"]:
                 worst_overall = worst
 
-    # Unpack worst-case counts & error
     wb = int(worst_overall["bottom"])
     wl = int(worst_overall["linear"])
     wt = int(worst_overall["top"])
     score = float(worst_overall["score"])
 
-    # Flags used for UI sorting:
-    # - meets_min: 1–2 bottom anchors, at least 2 linear points, at least 1 top anchor
-    # - meets_preferred: exactly 2 bottom, at least 3 linear, exactly 2 top
-    meets_min = (wl >= 2 and wb >= 1 and wb <= 2 and wt >= 1)
-    meets_preferred = (wl >= 3 and wb == 2 and wt == 2)
-
+    meets_min = wl >= 2 and wb >= 1 and wb <= 2 and wt >= 1
+    meets_preferred = wl >= 3 and wb == 2 and wt == 2
 
     return {
         "factor": float(factor),
-
         "worst_lower": wb,
         "worst_linear": wl,
         "worst_upper": wt,
         "score": score,
-
         "meets_min": bool(meets_min),
         "meets_preferred": bool(meets_preferred),
-
         "detail": per_combo,
     }
 
@@ -493,29 +555,27 @@ def _evaluate_factor_5pl(
 @st.cache_data(show_spinner=False)
 def suggest_factor_from_ranges(
     top_conc_5pl,
-    a_min_5pl, a_max_5pl,
-    b_min_5pl, b_max_5pl,
-    c_min_5pl, c_max_5pl,
-    d_min_5pl, d_max_5pl,
-    e_min_5pl, e_max_5pl,
+    a_min_5pl,
+    a_max_5pl,
+    b_min_5pl,
+    b_max_5pl,
+    c_min_5pl,
+    c_max_5pl,
+    d_min_5pl,
+    d_max_5pl,
+    e_min_5pl,
+    e_max_5pl,
     rps_list,
     n_candidates=80,
 ):
-    """
-    5PL version of your 4PL `suggest_factor_from_ranges`.
-
-    - Uses the midpoint of E (between e_min_5pl and e_max_5pl) as the asymmetry parameter.
-    - Builds all 16 min/max combinations of (A,B,C,D)
-    - Tests log-spaced factors in [1.2, 10]
-    - Picks the best factor based on:
-        meets_min, meets_preferred, *smallest* score (pattern error),
-        then smaller factor.
-    - Also stores a full table in st.session_state["rec_df_5pl"] for the UI.
-    """
-    # Use mid-point of E for all corners (keeps behaviour very close to 4PL)
     e_mid = 0.5 * (e_min_5pl + e_max_5pl)
 
-    choices = [(a_min_5pl, a_max_5pl), (b_min_5pl, b_max_5pl), (c_min_5pl, c_max_5pl), (d_min_5pl, d_max_5pl)]
+    choices = [
+        (a_min_5pl, a_max_5pl),
+        (b_min_5pl, b_max_5pl),
+        (c_min_5pl, c_max_5pl),
+        (d_min_5pl, d_max_5pl),
+    ]
     combos16 = list(itertools.product(*choices))
 
     factors = np.unique(
@@ -533,38 +593,41 @@ def suggest_factor_from_ranges(
         res = _evaluate_factor_5pl(
             factor=f,
             top=top_conc_5pl,
-            A=0.0, B=0.0, C=1.0, D=0.0,  # ignored when combos16 is used
+            A=0.0,
+            B=0.0,
+            C=1.0,
+            D=0.0,
             e_val=e_mid,
             rps_list=rps_list,
             combos16=combos16,
         )
         results.append(res)
 
-        # Same ranking key as 4PL
         key = (
             res["meets_min"],
             res["meets_preferred"],
-            -res["score"],   # smaller score -> larger -score
-            -res["factor"],  # smaller factor -> larger -factor
+            -res["score"],
+            -res["factor"],
         )
         if best is None or key > best_key:
             best = res
             best_key = key
 
-    # Build UI table just like 4PL
     if results:
-        rec_df_5pl = pd.DataFrame([
-            {
-                "factor": r["factor"],
-                "worst_lower": r["worst_lower"],
-                "worst_linear": r["worst_linear"],
-                "worst_upper": r["worst_upper"],
-                "score": r["score"],
-                "meets_min": r["meets_min"],
-                "meets_preferred": r["meets_preferred"],
-            }
-            for r in results
-        ])
+        rec_df_5pl = pd.DataFrame(
+            [
+                {
+                    "factor": r["factor"],
+                    "worst_lower": r["worst_lower"],
+                    "worst_linear": r["worst_linear"],
+                    "worst_upper": r["worst_upper"],
+                    "score": r["score"],
+                    "meets_min": r["meets_min"],
+                    "meets_preferred": r["meets_preferred"],
+                }
+                for r in results
+            ]
+        )
         rec_df_5pl = rec_df_5pl.sort_values(
             by=["meets_min", "meets_preferred", "score", "factor"],
             ascending=[False, False, True, True],
@@ -580,19 +643,12 @@ def suggest_factor_from_ranges(
 # ===================== Layout: main panels ===================== #
 # ========================================================================== #
 
-st.markdown("---")
 left_panel, graph_col = st.columns([1.15, 1.85], gap="large")
 
 # -------------------- Left: Dilution series controls -----------------------
 
 with left_panel:
     st.subheader("Dilution series")
-    with st.expander("What does 'Dilution series' mean?", expanded=False):
-        st.markdown(
-            "The **dilution factor** is how much each step is diluted from the previous one, "
-            "creating a series of decreasing doses for the curve. For example, a factor of 3 "
-            "means each well is 1/3 of the concentration of the prior well."
-        )
 
     st.number_input(
         "Top concentration",
@@ -601,8 +657,10 @@ with left_panel:
         step=1.0,
         format="%.6g",
         key="top_conc_5pl",
-        help="The top concentration is the highest dose you start with, "
-             "setting the upper limit of the dose–response curve.",
+        help=(
+            "The top concentration is the highest dose you start with, "
+            "setting the upper limit of the dose–response curve."
+        ),
     )
 
     st.number_input(
@@ -643,25 +701,42 @@ with graph_col:
 with left_panel:
     st.markdown("### Parameter ranges (min/max)")
 
-    with st.expander("What do A, B, C, D, and E mean?", expanded=False):
-        st.markdown(
-            """
-**A** – Lower asymptote  
-**B** – Steepness (slope around the midpoint)  
-**C** – EC₅₀: concentration giving 50% response  
-**D** – Upper asymptote  
-**E** – Asymmetry parameter controlling curve skew  
-            """
-        )
+    # --- Upload-derived info (only if Upload was used), like 4PL ---
+    if _FROM_UPLOAD_5pl:
+        with st.expander("Loaded from Upload page", expanded=False):
+            st.write("param_bounds:", st.session_state.get("param_bounds"))
+            mi = st.session_state.get("model_input")
+            if isinstance(mi, pd.DataFrame):
+                st.dataframe(mi)
 
-    defaults = {
-        "a_min_5pl": 0.8, "a_max_5pl": 1.2,
-        "b_min_5pl": -2.0, "b_max_5pl": -0.5,
-        "c_min_5pl": 0.1, "c_max_5pl": 3.0,
-        "d_min_5pl": 0.0, "d_max_5pl": 0.2,
-        "e_min_5pl": 0.8, "e_max_5pl": 1.2,
+        msg = st.session_state.get("_5pl_loaded_ranges_msg")
+        if msg:
+            st.info(msg)
+
+        clear_col, _ = st.columns([1, 3])
+        with clear_col:
+            if st.button("Clear load", key="clear_5pl_load"):
+                st.session_state.pop("param_bounds", None)
+                st.session_state.pop("model_input", None)
+                st.session_state.pop("_5pl_loaded_ranges_msg", None)
+                st.session_state.pop("_last_bounds_5pl", None)
+                st.session_state.pop("prefilled_5pl", None)
+                st.rerun()
+
+    # Ensure defaults exist (in case user cleared things)
+    defaults_ranges = {
+        "a_min_5pl": 0.8,
+        "a_max_5pl": 1.2,
+        "b_min_5pl": -2.0,
+        "b_max_5pl": -0.5,
+        "c_min_5pl": 0.1,
+        "c_max_5pl": 3.0,
+        "d_min_5pl": 0.0,
+        "d_max_5pl": 0.2,
+        "e_min_5pl": 0.8,
+        "e_max_5pl": 1.2,
     }
-    for k, v in defaults.items():
+    for k, v in defaults_ranges.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
@@ -682,25 +757,45 @@ with left_panel:
         with cMax:
             st.number_input("", key=k_max, label_visibility="collapsed", **max_cfg)
 
-    row("A", "a_min_5pl", "a_max_5pl",
+    row(
+        "A",
+        "a_min_5pl",
+        "a_max_5pl",
         {"min_value": 0.0, "max_value": 2.0, "step": 0.01},
-        {"min_value": 0.0, "max_value": 2.0, "step": 0.01})
+        {"min_value": 0.0, "max_value": 2.0, "step": 0.01},
+    )
 
-    row("B", "b_min_5pl", "b_max_5pl",
+    row(
+        "B",
+        "b_min_5pl",
+        "b_max_5pl",
         {"min_value": -10.0, "max_value": 10.0, "step": 0.01},
-        {"min_value": -10.0, "max_value": 10.0, "step": 0.01})
+        {"min_value": -10.0, "max_value": 10.0, "step": 0.01},
+    )
 
-    row("C", "c_min_5pl", "c_max_5pl",
+    row(
+        "C",
+        "c_min_5pl",
+        "c_max_5pl",
         {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"},
-        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"})
+        {"min_value": 1e-6, "max_value": 1e6, "step": 0.01, "format": "%.6g"},
+    )
 
-    row("D", "d_min_5pl", "d_max_5pl",
+    row(
+        "D",
+        "d_min_5pl",
+        "d_max_5pl",
         {"min_value": 0.0, "max_value": 1.0, "step": 0.01},
-        {"min_value": 0.0, "max_value": 1.0, "step": 0.01})
+        {"min_value": 0.0, "max_value": 1.0, "step": 0.01},
+    )
 
-    row("E", "e_min_5pl", "e_max_5pl",
+    row(
+        "E",
+        "e_min_5pl",
+        "e_max_5pl",
         {"min_value": 0.1, "max_value": 5.0, "step": 0.01},
-        {"min_value": 0.1, "max_value": 5.0, "step": 0.01})
+        {"min_value": 0.1, "max_value": 5.0, "step": 0.01},
+    )
 
     st.text_input(
         "Relative potencies (comma/space separated)",
@@ -820,7 +915,7 @@ for idx, cv in enumerate(st.session_state["curves_5pl"]):
     lock_color = palette[(locked_start_index + idx) % len(palette)]
 
     x_dense_locked = dp.generate_log_conc(
-        top_conc_5pl=float(tc),
+        top_conc=float(tc),
         dil_factor=float(ef),
         n_points=8,
         dense=True,
@@ -851,7 +946,7 @@ for idx, cv in enumerate(st.session_state["curves_5pl"]):
         )
 
 fig.update_layout(
-    title="Dose-Response curves_5pl",
+    title="Dose-Response Curves",
     xaxis_title="Log Concentration",
     yaxis_title="Response",
     legend_title=None,
@@ -897,10 +992,12 @@ with graph_col:
             _rerun()
 
     with col_btn2:
-        if st.button("Clear all saved curves_5pl", key="btn_clear_curves_5pl_5pl"):
+        if st.button(
+            "Clear all saved curves", key="btn_clear_curves_5pl_5pl"
+        ):
             st.session_state["curves_5pl"] = []
             st.session_state["next_label_idx_5pl"] = 1
-            st.info("Cleared all saved curves_5pl.")
+            st.info("Cleared all saved curves.")
             _rerun()
 
     st.markdown("---")
@@ -927,13 +1024,15 @@ For each candidate factor (log-spaced between **1.2** and **10**), it:
 
 For every curve/RP, it then compares the pattern  
 (bottom, linear, top) to the target **(2, 3, 2)** using:
-
-\[
-J = (n_{\text{bottom}} - 2)^2
-  + (n_{\text{linear}} - 3)^2
-  + (n_{\text{top}} - 2)^2
-\]
-
+            """
+        )
+        st.latex(r"""
+            J = (n_{\text{bottom}} - 2)^2
+            + (n_{\text{linear}} - 3)^2
+            + (n_{\text{top}} - 2)^2
+        """)
+        st.markdown(
+            """
 For a given dilution factor, we look at the **worst-case** \(J\) across all
 32 parameter corners and all RPs. Factors with smaller worst-case \(J\) are better
 (they are closest to the 2–3–2 pattern in every case).
@@ -1025,23 +1124,17 @@ st.markdown("---")
 
 # ===================== Edge cases (32 panels) =====================
 
-st.markdown("### Edge cases: all min/max combinations of A, B, C, D, E (32 panels)")
-with st.expander("What are Edge cases?", expanded=False):
-    st.markdown(
-        "These plots show all the edge-case combinations of parameters **A, B, C, D, and E**. "
-        "Each panel represents a minimum/maximum setting of those parameters so users can see how "
-        "extreme values change the shape and behavior of the response curve."
-    )
+st.markdown("### Edge cases: all min/max combinations of A, B, C, D, E")
 
 x_sparse_edge = dp.generate_log_conc(
-    top_conc_5pl=top_conc_5pl,
+    top_conc=top_conc_5pl,
     dil_factor=even_factor,
     n_points=8,
     dense=False,
     dilution_factors=(custom_factors if len(custom_factors) == 7 else None),
 )
 x_dense_edge = dp.generate_log_conc(
-    top_conc_5pl=top_conc_5pl,
+    top_conc=top_conc_5pl,
     dil_factor=even_factor,
     n_points=8,
     dense=True,
@@ -1166,7 +1259,11 @@ for idx, (_aa, _bb, _cc, _dd, _ee_) in enumerate(combos_edge, start=1):
     r = row0 + 1
     c_idx = col0 + 1
 
-    tip = tooltip_texts_5pl[idx - 1] if 1 <= idx <= len(tooltip_texts_5pl) else f"Edge case {idx}"
+    tip = (
+        tooltip_texts_5pl[idx - 1]
+        if 1 <= idx <= len(tooltip_texts_5pl)
+        else f"Edge case {idx}"
+    )
 
     edge_fig.add_scatter(
         x=[x_icon],
@@ -1230,7 +1327,7 @@ st.markdown("---")
 col_saved, col_preview = st.columns([1.15, 1.85], gap="large")
 
 with col_saved:
-    st.subheader("Saved curves_5pl")
+    st.subheader("Saved curves")
     df_saved = curves_5pl_to_dataframe(st.session_state["curves_5pl"])
     if not df_saved.empty:
         st.dataframe(df_saved, use_container_width=True, height=320)
@@ -1242,19 +1339,21 @@ with col_saved:
             key="btn_export_saved_csv_5pl",
         )
     else:
-        st.info("No saved curves_5pl yet.")
+        st.info("No saved curves yet.")
 
 with col_preview:
     st.subheader("Dilution preview (current settings)")
-    conc_sparse_live = (10 ** x_sparse_live).astype(float)
+    conc_sparse_live = (10**x_sparse_live).astype(float)
     y_sparse_live = _five_pl_logistic(x_sparse_live, a, b, c, d, e)
 
-    df_preview = pd.DataFrame({
-        "Well": np.arange(1, len(x_sparse_live) + 1, dtype=int),
-        "log10(conc)": x_sparse_live,
-        "conc": conc_sparse_live,
-        "response (current)": y_sparse_live,
-    })
+    df_preview = pd.DataFrame(
+        {
+            "Well": np.arange(1, len(x_sparse_live) + 1, dtype=int),
+            "log10(conc)": x_sparse_live,
+            "conc": conc_sparse_live,
+            "response (current)": y_sparse_live,
+        }
+    )
     dfp = df_preview.copy()
     dfp["log10(conc)"] = dfp["log10(conc)"].map(lambda v: f"{v:.6f}")
     dfp["conc"] = dfp["conc"].map(lambda v: f"{v:.6g}")
