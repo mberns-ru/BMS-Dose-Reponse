@@ -5,7 +5,7 @@ import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from plotly.colors import qualitative
-import dose_response as dp
+import utils.dose_response as dp
 from PIL import Image
 import base64, io
 

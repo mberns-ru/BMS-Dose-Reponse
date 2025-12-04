@@ -10,7 +10,7 @@ from plotly.colors import qualitative
 from PIL import Image
 import streamlit as st
 
-import dose_response as dp
+import utils.dose_response as dp
 from utils.param_loader import load_param_bounds
 
 

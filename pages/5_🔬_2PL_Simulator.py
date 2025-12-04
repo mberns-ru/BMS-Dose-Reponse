@@ -10,7 +10,7 @@ from plotly.colors import qualitative
 from PIL import Image
 import streamlit as st
 
-import dose_response as dp
+import utils.dose_response as dp
 
 # ===================== Auto-populate 2PL parameters from Upload Page =====================
 params_df = st.session_state.get("model_input", None)

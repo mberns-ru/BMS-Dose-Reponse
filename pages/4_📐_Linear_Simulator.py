@@ -12,7 +12,7 @@ from plotly.colors import qualitative
 from PIL import Image
 import streamlit as st
 
-import dose_response as dp  # uses generate_log_conc for dilution grid
+import utils.dose_response as dp  # uses generate_log_conc for dilution grid
 
 
 # ===================== Auto-populate from Upload Page =====================
