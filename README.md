@@ -52,7 +52,6 @@ The app supports:
 project/
 │
 ├── 1_Home.py                     # Landing page (tutorial + model selector)
-├── dose_response.py              # Shared dose–response math utilities
 ├── requirements.txt
 ├── .gitattributes
 │
@@ -65,8 +64,9 @@ project/
 │   └── __pycache__/
 │
 ├── utils/
-│   ├── param_loader.py
-│   ├── logo_utils.py
+│   ├── dose_response.py        # Math utilities
+│   ├── param_loader.py         # Upload helper
+│   ├── logo_utils.py           # Graphics helper
 │   └── __pycache__/
 │
 ├── graphics/
