@@ -133,7 +133,7 @@ with st.expander("What this page does and how to use it"):
     These processed parameter ranges will be automatically available in any dose-response model page (Linear, 4PL, 5PL, 2PL).
     ### 📄 Dataset Template
 
-    Your uploaded dataset **models this structure**:
+    Your uploaded dataset **should model this structure**:
 
     | sample | a   | b     | c   | d   | e    |
     |--------|-----|-------|-----|-----|------|
