@@ -131,6 +131,22 @@ with st.expander("What this page does and how to use it"):
     Upload your experimental data (Excel or CSV) containing replicate columns (A, B, C, D).  
     **Min/Max** across replicates will be calculated.  
     These processed parameter ranges will be automatically available in any dose-response model page (Linear, 4PL, 5PL, 2PL).
+    ### 📄 Dataset Template
+
+    Your uploaded dataset **should model this structure**:
+
+    | sample | a   | b     | c   | d   | e    |
+    |--------|-----|-------|-----|-----|------|
+    | STD    | 0.8 | -1.5  | 0.6 | 0   | 0.7  |
+    | TST1   | 0.9 | -1.12 | 2   | 0.2 | 0.1  |
+    | TST2   | 1   | -0.25 | 1.7 | 0.4 | 1    |
+    | TST3   | 1.1 | -1.5  | 0.2 | 0.9 | 0.01 |
+
+    **Requirements:**
+    - The first column **must be named** `sample`
+    - All other columns (`a`, `b`, `c`, `d`, `e`) should contain **numeric values**
+    - You can include any number of test rows (TST1, TST2, …)
+    - CSV or Excel formats are accepted
     """)
 
 st.title("Upload Data for Dose-Response Analysis")
