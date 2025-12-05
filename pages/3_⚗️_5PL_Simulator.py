@@ -1088,13 +1088,18 @@ st.markdown("### Recommended even dilution factors")
 
 if rec_df_5pl is not None and not rec_df_5pl.empty:
     rec_df_5pl_disp = rec_df_5pl.copy()
+
+    rec_df_5pl_disp = rec_df_5pl_disp.drop(columns=["meets_min", "meets_preferred"], errors="ignore")
+
     rec_df_5pl_disp["factor"] = rec_df_5pl_disp["factor"].map(lambda v: f"{v:.6g}")
     rec_df_5pl_disp["score"] = rec_df_5pl_disp["score"].map(lambda v: f"{v:.3g}")
+
     st.dataframe(rec_df_5pl_disp.head(20), use_container_width=True, height=320)
 
+    csv_no_flags = rec_df_5pl.drop(columns=["meets_min", "meets_preferred"], errors="ignore")
     st.download_button(
         "Download all recommendations (CSV)",
-        data=rec_df_5pl.to_csv(index=False).encode("utf-8"),
+        data=csv_no_flags.to_csv(index=False).encode("utf-8"),
         file_name="dilution_factor_recommendations_5pl.csv",
         mime="text/csv",
         key="btn_dl_rec_csv_5pl",
