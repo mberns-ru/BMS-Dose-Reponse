@@ -117,6 +117,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.sidebar.markdown("Developed by **Madeline Berns**, **Tanvi Pathak**, and **Ziqi Wei**.")
+
 # ======= Title =======
 st.title("4-Parameter Logistic (4PL) Simulator")
 

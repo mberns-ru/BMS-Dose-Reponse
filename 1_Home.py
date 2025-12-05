@@ -52,7 +52,6 @@ if os.path.exists(LOGO_PATH):
         pass
 
 st.sidebar.success("Select a page above ☝️")
-st.sidebar.markdown("---")
 st.sidebar.markdown("Developed by **Madeline Berns**, **Tanvi Pathak**, and **Ziqi Wei**.")
 
 # ===================== Header =====================

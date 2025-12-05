@@ -147,6 +147,8 @@ except Exception:
     # Fail silently if logo is missing in dev environments
     pass
 
+st.sidebar.markdown("Developed by **Madeline Berns**, **Tanvi Pathak**, and **Ziqi Wei**.")
+
 # ===================== 2PL model (fixed lower=0, upper=1) ===================
 
 A_FIXED = 1.0   # upper asymptote

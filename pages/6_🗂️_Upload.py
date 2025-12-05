@@ -31,6 +31,8 @@ try:
 except Exception:
     st.warning("Logo could not be loaded.")
 
+st.sidebar.markdown("Developed by **Madeline Berns**, **Tanvi Pathak**, and **Ziqi Wei**.")
+
 # --- Helpers: detect model + route ---
 def _norm_cols(cols):
     return [str(c).strip().lower() for c in cols]

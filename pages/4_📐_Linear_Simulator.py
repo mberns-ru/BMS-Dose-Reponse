@@ -81,6 +81,8 @@ except Exception:
     # Fail silently if logo is missing in dev envs
     pass
 
+st.sidebar.markdown("Developed by **Madeline Berns**, **Tanvi Pathak**, and **Ziqi Wei**.")
+
 
 # ===================== Page config =========================================
 

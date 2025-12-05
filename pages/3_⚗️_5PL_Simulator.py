@@ -205,6 +205,8 @@ try:
 except Exception:
     pass
 
+st.sidebar.markdown("Developed by **Madeline Berns**, **Tanvi Pathak**, and **Ziqi Wei**.")
+
 # ===================== Title & help text =====================
 
 st.title("5-Parameter Logistic (5PL) Simulator")
